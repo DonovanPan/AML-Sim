@@ -9,6 +9,17 @@ StockSim submodule.
 and pushed from that directory, then the parent AML-Sim repository commits the
 updated submodule pointer.
 
+## Built On StockSim
+
+AML-Sim builds on top of
+[StockSim](https://github.com/shmaiii/StockSim), which is included as a git
+submodule under `simulators/StockSim`. StockSim provides the core market
+simulation engine, exchange agents, trader framework, RabbitMQ-based
+coordination, and YAML-driven simulation launcher.
+
+This repository adds AML-specific scenario orchestration and synthetic market
+participants for studying market behavior, robustness, and decision making.
+
 ## Repository Layout
 
 ```text
