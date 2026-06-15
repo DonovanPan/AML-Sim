@@ -1,7 +1,7 @@
 name: aml_orderbook_replay
 description: >
   First AML wrapper orderbook smoke test. This keeps StockSim unchanged and
-  runs AAPL with a random baseline trader plus a buy-and-hold baseline trader.
+  runs AAPL with the minimum synthetic AML market roles.
 rabbitmq_host: localhost
 
 stocksim_config:
@@ -12,32 +12,52 @@ stocksim_config:
 
   exchanges:
     AAPL:
-      data_source: polygon
+      data_source: synthetic
       symbol_type: stock
       candle_interval: 1d
       warmup_candles: 0
 
   agents:
-    random_baseline:
-      type: Random_Trader
+    market_maker:
+      type: AML_Market_Maker
       count: 1
       parameters:
-        initial_cash: 100000
-        action_interval: 5m
-        trade_probability: 0.2
-        position_size_pct: 0.05
+        initial_cash: 1000000
+        action_interval: 1m
+        fair_price: 100.0
+        spread: 0.2
+        quote_size: 100
+        target_inventory: 10000
+        inventory_skew: 0.001
+        initial_positions:
+          AAPL: 10000
+        initial_cost_basis:
+          AAPL: 100.0
+
+    retail_population:
+      type: AML_Retail_Trader
+      count: 5
+      parameters:
+        initial_cash: 25000
+        action_interval: 1m
+        trade_probability: 0.35
+        max_order_size: 20
+        buy_bias: 0.5
         initial_positions:
           AAPL: 0
         initial_cost_basis:
           AAPL: 100.0
 
-    buy_hold_baseline:
-      type: Buy_And_Hold_Trader
+    institutional_trader:
+      type: AML_Institutional_Trader
       count: 1
       parameters:
-        initial_cash: 100000
-        action_interval: 1m
-        quantity_size: 100
+        initial_cash: 500000
+        action_interval: 5m
+        target_positions:
+          AAPL: 500
+        child_order_size: 100
+        order_type: MARKET
         initial_positions:
           AAPL: 0
         initial_cost_basis:
