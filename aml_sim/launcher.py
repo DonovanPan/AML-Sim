@@ -12,7 +12,6 @@ import time
 from contextlib import contextmanager
 from multiprocessing import Process
 from pathlib import Path
-from types import ModuleType
 from typing import Any, Iterator
 
 from aml_sim.runs import AMLRun
@@ -485,15 +484,9 @@ def generate_stocksim_reports(config: dict[str, Any], aml_run: AMLRun) -> None:
     """Call StockSim's report generator while saving outputs under AML-Sim."""
     print(f"Generating StockSim reports in: {aml_run.reports_dir}")
     with patched_output_directories(aml_run.charts_dir, aml_run.reports_dir):
-        reporting = import_stocksim_reporting()
-        reporting.generate_post_simulation_artifacts(config)
+        from aml_sim.reporting import generate_post_simulation_artifacts
 
-
-def import_stocksim_reporting() -> ModuleType:
-    """Import StockSim's lightweight reporting module."""
-    import reporting
-
-    return reporting
+        generate_post_simulation_artifacts(config)
 
 
 def build_instrument_exchange_map(exchange_mode: str, instruments: list[str]) -> dict[str, str]:
