@@ -1,0 +1,5 @@
+# AML-Sim dependencies
+#
+# StockSim is used as the simulation engine, so install its runtime
+# requirements from the top-level AML-Sim environment.
+-r simulators/StockSim/requirements.txt
