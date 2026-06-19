@@ -41,11 +41,15 @@ AML-Sim currently has a thin orchestration layer around StockSim:
 1. `aml_runner.py` reads an AML scenario YAML file.
 2. The scenario's `stocksim_config` section is extracted and written to
    `.aml_runs/<run-id>/stocksim_config.yaml`.
-3. `aml_runner.py` launches `simulators/StockSim/main_launcher.py` with that
-   generated StockSim config.
-4. StockSim starts the exchange agents, trader agents, and simulation clock.
-5. Components communicate through RabbitMQ.
-6. Logs for AML-launched runs are written under `.aml_runs/<run-id>/logs`.
+3. AML-Sim also archives the original scenario as
+   `.aml_runs/<run-id>/scenario.yaml` and writes run metadata to
+   `.aml_runs/<run-id>/metadata.json`.
+4. AML-Sim imports StockSim exchange, trader, and simulation-clock classes and
+   starts those component processes itself. `simulators/StockSim/main_launcher.py`
+   remains StockSim's standalone CLI entrypoint.
+5. StockSim starts the exchange agents, trader agents, and simulation clock.
+6. Components communicate through RabbitMQ.
+7. Logs for AML-launched runs are written under `.aml_runs/<run-id>/logs`.
 
 The scenario YAML is the experiment definition. It contains AML-level metadata
 such as `name`, `description`, and `rabbitmq_host`, plus the `stocksim_config`
@@ -92,7 +96,7 @@ Create and activate a Python environment from the AML-Sim root:
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install -r simulators/StockSim/requirements.txt
+pip install -r requirements.txt
 ```
 
 For the current synthetic order book scenario, no Polygon, Alpha Vantage, or LLM
@@ -142,7 +146,12 @@ python aml_runner.py scenarios/aml_orderbook_replay.yaml --dry-run
 This creates a run directory under `.aml_runs/` and writes:
 
 ```text
+.aml_runs/<run-id>/scenario.yaml
 .aml_runs/<run-id>/stocksim_config.yaml
+.aml_runs/<run-id>/metadata.json
+.aml_runs/<run-id>/logs/
+.aml_runs/<run-id>/charts/
+.aml_runs/<run-id>/reports/
 ```
 
 Then run the full scenario with RabbitMQ running:
@@ -150,6 +159,18 @@ Then run the full scenario with RabbitMQ running:
 ```bash
 python aml_runner.py scenarios/aml_orderbook_replay.yaml
 ```
+
+To call StockSim's post-simulation artifact generator and save reports/charts
+inside the AML run directory, add `--reports`:
+
+```bash
+python aml_runner.py scenarios/aml_orderbook_replay.yaml --reports
+```
+
+For the current synthetic order book scenario, this writes the StockSim summary
+JSON under `.aml_runs/<run-id>/reports/`. Future AML-specific reports should use
+the same run-local `reports/` and `charts/` folders, but can add synthetic
+orderbook/trade HTML views instead of relying only on external candle data.
 
 You can set a stable run directory name while iterating:
 
