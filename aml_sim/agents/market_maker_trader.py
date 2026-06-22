@@ -7,11 +7,11 @@ orderbook scenario has synthetic liquidity without historical replay data.
 
 from typing import Any, Dict, Optional
 
-from agents.benchmark_traders.trader import TraderAgent
+from aml_sim.agents.base import AMLTraderAgent
 from utils.orders import OrderType, Side
 
 
-class AMLMarketMakerTrader(TraderAgent):
+class AMLMarketMakerTrader(AMLTraderAgent):
     """
     Simple synthetic market maker for AML simulations.
 
@@ -35,22 +35,19 @@ class AMLMarketMakerTrader(TraderAgent):
         rabbitmq_host: str = "localhost",
         **kwargs,
     ) -> None:
-        trader_kwargs = {}
-        for param in [
-            "initial_cash",
-            "initial_positions",
-            "initial_cost_basis",
-            "action_interval_seconds",
-        ]:
-            if param in kwargs:
-                trader_kwargs[param] = kwargs[param]
-
         super().__init__(
             instrument_exchange_map=instrument_exchange_map,
             agent_id=agent_id,
             rabbitmq_host=rabbitmq_host,
-            **trader_kwargs,
+            **kwargs,
         )
+
+        if fair_price <= 0:
+            raise ValueError(f"fair_price must be positive, got {fair_price}")
+        if spread <= 0:
+            raise ValueError(f"spread must be positive, got {spread}")
+        if quote_size <= 0:
+            raise ValueError(f"quote_size must be positive, got {quote_size}")
 
         self.fair_price = fair_price
         self.spread = spread
@@ -139,4 +136,3 @@ class AMLMarketMakerTrader(TraderAgent):
             f"AMLMarketMakerTrader {self.agent_id} inventory after trade: "
             f"{dict(self.long_qty)}"
         )
-

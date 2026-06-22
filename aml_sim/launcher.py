@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import importlib
 import json
 import os
 import random
@@ -14,6 +15,16 @@ from multiprocessing import Process
 from pathlib import Path
 from typing import Any, Iterator
 
+from aml_sim.constants import (
+    AGENT_TYPE_INSTITUTIONAL_TRADER,
+    AGENT_TYPE_LLM_TRADER,
+    AGENT_TYPE_MARKET_MAKER,
+    AGENT_TYPE_RANDOM_TRADER,
+    AGENT_TYPE_RETAIL_TRADER,
+    DATA_SOURCE_POLYGON,
+    EXCHANGE_MODE_CANDLE,
+    EXCHANGE_MODE_ORDERBOOK,
+)
 from aml_sim.runs import AMLRun
 from aml_sim.scenario import AMLScenario
 
@@ -78,8 +89,24 @@ def patched_output_directories(
     charts_dir: Path,
     reports_dir: Path,
 ) -> Iterator[None]:
-    """Route StockSim report helpers into the AML run artifact directories."""
-    from utils import plot_charts
+    """Route StockSim report helpers into the AML run artifact directories.
+
+    NOTE: This monkey-patches ``plot_charts.ensure_output_directories`` at
+    runtime because StockSim's report generation calls that function
+    internally to decide where to write files.  StockSim does not expose a
+    parameter to override the output paths, so patching is the only way to
+    redirect artifacts without modifying the StockSim submodule.  If StockSim
+    ever adds a configuration option for output directories, this patching
+    should be removed.
+    """
+    try:
+        from utils import plot_charts
+    except ImportError as exc:
+        raise ImportError(
+            "Cannot patch StockSim output directories: "
+            "StockSim package is not on sys.path. "
+            "Ensure StockSim is available before calling this function."
+        ) from exc
 
     original_helper = plot_charts.ensure_output_directories
 
@@ -107,8 +134,8 @@ def import_stocksim_components(config: dict[str, Any]) -> dict[str, Any]:
     from simulation.simulation_clock import SimulationClock
     from utils.time_utils import interval_to_seconds, parse_datetime_utc
 
-    exchange_mode = config.get("exchange_mode", "orderbook").lower()
-    if exchange_mode == "candle":
+    exchange_mode = config.get("exchange_mode", EXCHANGE_MODE_ORDERBOOK).lower()
+    if exchange_mode == EXCHANGE_MODE_CANDLE:
         from exchanges.candle_based_exchange_agent import CandleBasedExchangeAgent
 
         exchange_class = CandleBasedExchangeAgent
@@ -136,22 +163,33 @@ def import_stocksim_components(config: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+# Module-level registry: agent type string -> (module_path, class_name)
+_AGENT_TYPE_REGISTRY: dict[str, tuple[str, str]] = {
+    AGENT_TYPE_MARKET_MAKER: (
+        "aml_sim.agents.market_maker_trader",
+        "AMLMarketMakerTrader",
+    ),
+    AGENT_TYPE_RETAIL_TRADER: (
+        "aml_sim.agents.retail_trader",
+        "AMLRetailTrader",
+    ),
+    AGENT_TYPE_INSTITUTIONAL_TRADER: (
+        "aml_sim.agents.institutional_trader",
+        "AMLInstitutionalTrader",
+    ),
+}
+
+
 def import_agent_class(agent_type: str) -> type:
-    """Resolve an AML scenario agent type to an AML-Sim class."""
-    if agent_type == "AML_Market_Maker":
-        from aml_sim.agents.market_maker_trader import AMLMarketMakerTrader
-
-        return AMLMarketMakerTrader
-    if agent_type == "AML_Retail_Trader":
-        from aml_sim.agents.retail_trader import AMLRetailTrader
-
-        return AMLRetailTrader
-    if agent_type == "AML_Institutional_Trader":
-        from aml_sim.agents.institutional_trader import AMLInstitutionalTrader
-
-        return AMLInstitutionalTrader
-
-    raise ValueError(f"Unsupported agent type '{agent_type}'")
+    """Resolve an AML scenario agent type string to its Python class."""
+    if agent_type not in _AGENT_TYPE_REGISTRY:
+        raise ValueError(
+            f"Unsupported agent type '{agent_type}'. "
+            f"Known types: {', '.join(sorted(_AGENT_TYPE_REGISTRY))}"
+        )
+    module_path, class_name = _AGENT_TYPE_REGISTRY[agent_type]
+    module = importlib.import_module(module_path)
+    return getattr(module, class_name)
 
 
 def agent_runner(agent_class: type, parameters: dict[str, Any]) -> None:
@@ -202,30 +240,53 @@ def simulation_clock_runner(
     asyncio.run(simulation_clock.run())
 
 
+def _make_action_interval_customizer(
+    interval_to_seconds: Any,
+    default_seconds: int,
+) -> Any:
+    """Create a parameter transform that converts action_interval to seconds."""
+
+    def customize(params: dict[str, Any]) -> dict[str, Any]:
+        return {
+            **params,
+            "action_interval_seconds": (
+                interval_to_seconds(params["action_interval"])
+                if "action_interval" in params
+                else params.get("action_interval_seconds", default_seconds)
+            ),
+        }
+
+    return customize
+
+
 def build_agent_param_customizers(
     interval_to_seconds: Any,
 ) -> dict[str, Any]:
     """Create parameter transforms for AML-owned agent types."""
     return {
-        "AML_Market_Maker": lambda params: {
-            **params,
-            "action_interval_seconds": interval_to_seconds(params["action_interval"])
-            if "action_interval" in params
-            else params.get("action_interval_seconds", 60),
-        },
-        "AML_Retail_Trader": lambda params: {
-            **params,
-            "action_interval_seconds": interval_to_seconds(params["action_interval"])
-            if "action_interval" in params
-            else params.get("action_interval_seconds", 60),
-        },
-        "AML_Institutional_Trader": lambda params: {
-            **params,
-            "action_interval_seconds": interval_to_seconds(params["action_interval"])
-            if "action_interval" in params
-            else params.get("action_interval_seconds", 300),
-        },
+        AGENT_TYPE_MARKET_MAKER: _make_action_interval_customizer(
+            interval_to_seconds, default_seconds=60,
+        ),
+        AGENT_TYPE_RETAIL_TRADER: _make_action_interval_customizer(
+            interval_to_seconds, default_seconds=60,
+        ),
+        AGENT_TYPE_INSTITUTIONAL_TRADER: _make_action_interval_customizer(
+            interval_to_seconds, default_seconds=300,
+        ),
     }
+
+
+def _wait_for_startup(
+    processes: list[Process],
+    wait_seconds: float,
+    label: str,
+) -> None:
+    """Sleep then check that launched processes are still alive."""
+    print(f"Waiting {wait_seconds}s for {label} to initialize...")
+    time.sleep(wait_seconds)
+    dead = [p.name for p in processes if not p.is_alive()]
+    if dead:
+        print(f"WARNING: {label} exited prematurely: {', '.join(dead)}")
 
 
 def launch_stocksim(
@@ -234,6 +295,8 @@ def launch_stocksim(
     stocksim_dir: Path,
     env_file: Path,
     generate_reports: bool = False,
+    exchange_startup_wait: float = 10.0,
+    agent_startup_wait: float = 20.0,
 ) -> int:
     """Launch StockSim engine objects from AML-Sim orchestration code."""
     if not stocksim_dir.exists():
@@ -256,6 +319,8 @@ def launch_stocksim(
             config=scenario.stocksim_config,
             aml_run=aml_run,
             generate_reports=generate_reports,
+            exchange_startup_wait=exchange_startup_wait,
+            agent_startup_wait=agent_startup_wait,
         )
 
 
@@ -263,12 +328,14 @@ def run_stocksim_components(
     config: dict[str, Any],
     aml_run: AMLRun,
     generate_reports: bool = False,
+    exchange_startup_wait: float = 10.0,
+    agent_startup_wait: float = 20.0,
 ) -> int:
     """Start exchange, trader, and clock processes using StockSim classes."""
     components = import_stocksim_components(config)
     interval_to_seconds = components["interval_to_seconds"]
     agent_type_mapping = components["agent_types"]
-    exchange_mode = config.get("exchange_mode", "orderbook").lower()
+    exchange_mode = config.get("exchange_mode", EXCHANGE_MODE_ORDERBOOK).lower()
 
     instruments = config.get("instruments", [])
     exchanges_config = config.get("exchanges", {})
@@ -303,8 +370,7 @@ def run_stocksim_components(
         exchange_class=components["exchange_class"],
     )
 
-    print("Waiting for exchange agents to initialize...")
-    time.sleep(10)
+    _wait_for_startup(exchange_agents, exchange_startup_wait, "exchange agents")
 
     instrument_exchange_map = build_instrument_exchange_map(exchange_mode, instruments)
     agent_custom_params = build_agent_param_customizers(
@@ -318,13 +384,12 @@ def run_stocksim_components(
         rabbitmq_host=rabbitmq_host,
     )
 
-    print("Waiting for trading agents to initialize...")
-    time.sleep(20)
+    _wait_for_startup(agent_processes, agent_startup_wait, "trading agents")
 
     llm_count = sum(
         details.get("count", 1)
         for details in agents_config.values()
-        if details.get("type") == "LLMTradingAgent"
+        if details.get("type") == AGENT_TYPE_LLM_TRADER
     )
     clock_process = Process(
         target=simulation_clock_runner,
@@ -374,7 +439,7 @@ def generate_stocksim_reports(config: dict[str, Any], aml_run: AMLRun) -> None:
 
 def build_instrument_exchange_map(exchange_mode: str, instruments: list[str]) -> dict[str, str]:
     """Map instrument symbols to the exchange agent ids AML-Sim will start."""
-    if exchange_mode == "candle":
+    if exchange_mode == EXCHANGE_MODE_CANDLE:
         return {instrument: f"candle_exchange_{instrument.lower()}" for instrument in instruments}
     return {instrument: f"exchange_{instrument.lower()}" for instrument in instruments}
 
@@ -397,7 +462,7 @@ def start_exchange_processes(
     for instrument, exchange_id in instrument_exchange_map.items():
         inst_cfg = exchanges_config.get(instrument, {})
 
-        if exchange_mode == "candle":
+        if exchange_mode == EXCHANGE_MODE_CANDLE:
             exchange_params = {
                 "instrument": instrument,
                 "resolution": inst_cfg.get("candle_interval", "1d"),
@@ -410,7 +475,7 @@ def start_exchange_processes(
                 "spread_factor": inst_cfg.get("spread_factor", 0.001),
                 "limit_news": inst_cfg.get("news", {}).get("max_results", 50),
                 "indicator_kwargs": indicator_kwargs_map[instrument],
-                "data_source": inst_cfg.get("data_source", "polygon").lower(),
+                "data_source": inst_cfg.get("data_source", DATA_SOURCE_POLYGON).lower(),
                 "symbol_type": inst_cfg.get("symbol_type", "stock"),
             }
         else:
@@ -422,7 +487,7 @@ def start_exchange_processes(
                 "tickers": inst_cfg.get("news", {}).get("tickers", [instrument]),
                 "limit_news": inst_cfg.get("news", {}).get("max_results", 50),
                 "indicator_kwargs": indicator_kwargs_map[instrument],
-                "data_source": inst_cfg.get("data_source", "polygon").lower(),
+                "data_source": inst_cfg.get("data_source", DATA_SOURCE_POLYGON).lower(),
                 "symbol_type": inst_cfg.get("symbol_type", "stock"),
                 "data_start_date": inst_cfg.get("warmup_start_date"),
                 "data_end_date": inst_cfg.get("warmup_end_date") or simulation_end_time,
@@ -475,7 +540,7 @@ def start_trader_processes(
             instance_params.setdefault("instrument_exchange_map", instrument_exchange_map)
             instance_params["rabbitmq_host"] = rabbitmq_host
 
-            if agent_type == "Random_Trader":
+            if agent_type == AGENT_TYPE_RANDOM_TRADER:
                 instance_params["seed"] = random.randint(0, 10**6)
 
             process = Process(
@@ -491,8 +556,16 @@ def start_trader_processes(
 
 
 def terminate_processes(processes: list[Process]) -> None:
-    """Terminate any still-running child processes."""
+    """Terminate any still-running child processes, with force-kill fallback."""
     for process in processes:
         if process.is_alive():
             process.terminate()
             print(f"Terminated process '{process.name}' (PID: {process.pid}).")
+
+    # Give processes a chance to shut down gracefully, then force-kill.
+    for process in processes:
+        if process.is_alive():
+            process.join(timeout=5)
+            if process.is_alive():
+                process.kill()
+                print(f"Force-killed process '{process.name}' (PID: {process.pid}).")

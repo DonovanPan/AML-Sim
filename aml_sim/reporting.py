@@ -8,6 +8,14 @@ import traceback
 from datetime import datetime
 from typing import Any
 
+from aml_sim.constants import (
+    AGENT_TYPE_LLM_TRADER,
+    DATA_SOURCE_ALPHA_VANTAGE,
+    DATA_SOURCE_POLYGON,
+    DATA_SOURCE_SYNTHETIC,
+    EXCHANGE_MODE_CANDLE,
+)
+
 
 def parse_report_datetime(value: str):
     """Parse scenario datetimes, including common trailing-Z UTC notation."""
@@ -48,18 +56,18 @@ def generate_post_simulation_artifacts(config: dict[str, Any]) -> None:
         for instrument in instruments:
             try:
                 inst_cfg = exchanges_config.get(instrument, {})
-                data_source = inst_cfg.get("data_source", "polygon").lower()
+                data_source = inst_cfg.get("data_source", DATA_SOURCE_POLYGON).lower()
                 symbol_type = inst_cfg.get("symbol_type", "stock")
                 interval = inst_cfg.get("candle_interval", "1d")
                 indicator_kwargs = inst_cfg.get("indicator_kwargs", {})
 
                 print(f"Generating artifacts for {instrument} ({symbol_type})...")
 
-                if data_source == "synthetic":
+                if data_source == DATA_SOURCE_SYNTHETIC:
                     print(f"Skipping external chart/report generation for synthetic instrument {instrument}.")
                     continue
 
-                client = AlphaVantageClient() if data_source == "alpha_vantage" else PolygonClient()
+                client = AlphaVantageClient() if data_source == DATA_SOURCE_ALPHA_VANTAGE else PolygonClient()
 
                 if symbol_type == "crypto":
                     candles = client.load_crypto_aggregates(
@@ -118,7 +126,7 @@ def generate_post_simulation_artifacts(config: dict[str, Any]) -> None:
                     agent_config.get("count", 1)
                     for agent_config in config.get("agents", {}).values()
                 ),
-                "exchange_mode": config.get("exchange_mode", "candle"),
+                "exchange_mode": config.get("exchange_mode", EXCHANGE_MODE_CANDLE),
             },
             "generated_artifacts": {
                 "charts_directory": charts_dir,
@@ -129,12 +137,12 @@ def generate_post_simulation_artifacts(config: dict[str, Any]) -> None:
                 "llm_agents": sum(
                     1
                     for agent in config.get("agents", {}).values()
-                    if agent.get("type") == "LLMTradingAgent"
+                    if agent.get("type") == AGENT_TYPE_LLM_TRADER
                 ),
                 "benchmark_agents": sum(
                     1
                     for agent in config.get("agents", {}).values()
-                    if agent.get("type") != "LLMTradingAgent"
+                    if agent.get("type") != AGENT_TYPE_LLM_TRADER
                 ),
                 "multi_market": len(
                     {

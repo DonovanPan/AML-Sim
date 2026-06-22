@@ -7,11 +7,11 @@ child orders over time. Later this can become the LLM-directed strategy agent.
 
 from typing import Any, Dict, Optional
 
-from agents.benchmark_traders.trader import TraderAgent
+from aml_sim.agents.base import AMLTraderAgent
 from utils.orders import OrderType, Side
 
 
-class AMLInstitutionalTrader(TraderAgent):
+class AMLInstitutionalTrader(AMLTraderAgent):
     """
     Basic institutional-style participant for synthetic AML markets.
 
@@ -30,27 +30,23 @@ class AMLInstitutionalTrader(TraderAgent):
         rabbitmq_host: str = "localhost",
         **kwargs,
     ) -> None:
-        trader_kwargs = {}
-        for param in [
-            "initial_cash",
-            "initial_positions",
-            "initial_cost_basis",
-            "action_interval_seconds",
-        ]:
-            if param in kwargs:
-                trader_kwargs[param] = kwargs[param]
-
         super().__init__(
             instrument_exchange_map=instrument_exchange_map,
             agent_id=agent_id,
             rabbitmq_host=rabbitmq_host,
-            **trader_kwargs,
+            **kwargs,
         )
 
         self.target_positions = target_positions or {}
         self.child_order_size = max(1, child_order_size)
         self.order_type = order_type.upper()
         self.limit_price = limit_price
+
+        valid_order_types = {ot.value for ot in OrderType}
+        if self.order_type not in valid_order_types:
+            raise ValueError(
+                f"order_type must be one of {valid_order_types}, got '{order_type}'"
+            )
 
         self.logger.info(
             f"AMLInstitutionalTrader {self.agent_id} initialized: "

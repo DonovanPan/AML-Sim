@@ -8,6 +8,7 @@ optionally launches StockSim with that generated config.
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 
 from aml_sim.launcher import launch_stocksim
@@ -72,4 +73,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    sys.exit(main())

@@ -8,11 +8,11 @@ orders. Later this agent can react to synthetic news and herding signals.
 import random
 from typing import Any, Dict, Optional
 
-from agents.benchmark_traders.trader import TraderAgent
+from aml_sim.agents.base import AMLTraderAgent
 from utils.orders import OrderType, Side
 
 
-class AMLRetailTrader(TraderAgent):
+class AMLRetailTrader(AMLTraderAgent):
     """
     Basic retail-style participant for synthetic AML markets.
 
@@ -31,26 +31,25 @@ class AMLRetailTrader(TraderAgent):
         rabbitmq_host: str = "localhost",
         **kwargs,
     ) -> None:
-        trader_kwargs = {}
-        for param in [
-            "initial_cash",
-            "initial_positions",
-            "initial_cost_basis",
-            "action_interval_seconds",
-        ]:
-            if param in kwargs:
-                trader_kwargs[param] = kwargs[param]
-
         super().__init__(
             instrument_exchange_map=instrument_exchange_map,
             agent_id=agent_id,
             rabbitmq_host=rabbitmq_host,
-            **trader_kwargs,
+            **kwargs,
         )
 
-        self.trade_probability = max(0.0, min(1.0, trade_probability))
-        self.max_order_size = max(1, max_order_size)
-        self.buy_bias = max(0.0, min(1.0, buy_bias))
+        if not (0.0 <= trade_probability <= 1.0):
+            raise ValueError(
+                f"trade_probability must be between 0.0 and 1.0, got {trade_probability}"
+            )
+        if max_order_size < 1:
+            raise ValueError(f"max_order_size must be at least 1, got {max_order_size}")
+        if not (0.0 <= buy_bias <= 1.0):
+            raise ValueError(f"buy_bias must be between 0.0 and 1.0, got {buy_bias}")
+
+        self.trade_probability = trade_probability
+        self.max_order_size = max_order_size
+        self.buy_bias = buy_bias
         self.random = random.Random(random_seed)
 
         self.logger.info(
@@ -97,4 +96,3 @@ class AMLRetailTrader(TraderAgent):
                 f"AMLRetailTrader {self.agent_id} placed {side} market order "
                 f"for {quantity} {instrument}"
             )
-

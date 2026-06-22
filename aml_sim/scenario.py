@@ -9,13 +9,13 @@ from typing import Any
 import yaml
 
 
-REQUIRED_STOCKSIM_CONFIG_KEYS = [
+REQUIRED_STOCKSIM_CONFIG_KEYS = frozenset({
     "exchange_mode",
     "instruments",
     "exchanges",
     "agents",
     "simulation",
-]
+})
 
 
 @dataclass(frozen=True)
@@ -34,6 +34,8 @@ def load_yaml(path: Path) -> dict[str, Any]:
     """Load a YAML mapping from disk."""
     if not path.exists():
         raise FileNotFoundError(f"Scenario file not found: {path}")
+    if not path.is_file():
+        raise ValueError(f"Scenario path is not a file: {path}")
 
     with path.open("r", encoding="utf-8") as handle:
         data = yaml.safe_load(handle) or {}
