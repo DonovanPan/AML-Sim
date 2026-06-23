@@ -5,13 +5,23 @@ Models a larger participant that tries to build or reduce a target position in
 child orders over time. Later this can become the LLM-directed strategy agent.
 """
 
-from typing import Any, Dict, Optional
+from __future__ import annotations
 
-from agents.benchmark_traders.trader import TraderAgent
+from typing import Any, Dict, Mapping, Optional
+
+from aml_sim.agents.base import BaseAMLAgent
+from aml_sim.agents.context.memory import MemoryBackend
+from aml_sim.agents.context.observation import ObservationProcessor
+from aml_sim.agents.models.profile import InstitutionalProfile, coerce_profile
+from aml_sim.agents.strategy.llm_slow_strategy import (
+    SlowStrategist,
+    create_static_institutional_llm_strategist,
+)
+from aml_sim.agents.models.state import InstitutionalStrategyState
 from utils.orders import OrderType, Side
 
 
-class AMLInstitutionalTrader(TraderAgent):
+class AMLInstitutionalTrader(BaseAMLAgent):
     """
     Basic institutional-style participant for synthetic AML markets.
 
@@ -26,6 +36,11 @@ class AMLInstitutionalTrader(TraderAgent):
         child_order_size: int = 100,
         order_type: str = OrderType.MARKET.value,
         limit_price: Optional[float] = None,
+        profile: Optional[InstitutionalProfile | Mapping[str, Any]] = None,
+        memory: Optional[MemoryBackend] = None,
+        observation_processor: Optional[ObservationProcessor] = None,
+        slow_loop_interval_seconds: Optional[int] = None,
+        slow_strategist: Optional[SlowStrategist] = None,
         agent_id: Optional[str] = None,
         rabbitmq_host: str = "localhost",
         **kwargs,
@@ -42,36 +57,34 @@ class AMLInstitutionalTrader(TraderAgent):
 
         super().__init__(
             instrument_exchange_map=instrument_exchange_map,
+            strategy_state=InstitutionalStrategyState(
+                target_positions=dict(target_positions or {}),
+                child_order_size=child_order_size,
+                order_type=order_type.upper(),
+                limit_price=limit_price,
+            ),
+            profile=coerce_profile(profile, InstitutionalProfile),
+            memory=memory,
+            observation_processor=observation_processor,
+            slow_strategist=slow_strategist or create_static_institutional_llm_strategist(),
+            slow_loop_interval_seconds=slow_loop_interval_seconds,
             agent_id=agent_id,
             rabbitmq_host=rabbitmq_host,
             **trader_kwargs,
         )
 
-        self.target_positions = target_positions or {}
-        self.child_order_size = max(1, child_order_size)
-        self.order_type = order_type.upper()
-        self.limit_price = limit_price
-
         self.logger.info(
             f"AMLInstitutionalTrader {self.agent_id} initialized: "
-            f"target_positions={self.target_positions}, "
-            f"child_order_size={self.child_order_size}, order_type={self.order_type}"
+            f"strategy_state={self.strategy_state}"
         )
 
-    async def handle_time_tick(self, payload: Dict[str, Any]) -> None:
-        await super().handle_time_tick(payload)
-
-        current_time = self.current_time
-        if self.next_action_time is None:
-            self.next_action_time = current_time
-
-        if current_time >= self.next_action_time:
-            for instrument in self.instrument_exchange_map.keys():
-                await self._execute_toward_target(instrument)
-            self.next_action_time = current_time + self.action_interval
+    async def run_fast_loop(self, observation: Mapping[str, Any]) -> None:
+        for instrument in self.instrument_exchange_map.keys():
+            await self._execute_toward_target(instrument)
 
     async def _execute_toward_target(self, instrument: str) -> None:
-        target = self.target_positions.get(instrument, 0)
+        strategy = self.strategy_state
+        target = strategy.target_positions.get(instrument, 0)
         current = self.long_qty[instrument]
         gap = target - current
 
@@ -79,7 +92,7 @@ class AMLInstitutionalTrader(TraderAgent):
             return
 
         side = Side.BUY.value if gap > 0 else Side.SELL.value
-        quantity = min(abs(gap), self.child_order_size)
+        quantity = min(abs(gap), strategy.child_order_size)
 
         if side == Side.SELL.value:
             held = self.long_qty[instrument]
@@ -88,18 +101,18 @@ class AMLInstitutionalTrader(TraderAgent):
                 return
             quantity = min(quantity, held)
 
-        price = self.limit_price if self.order_type == OrderType.LIMIT.value else None
+        price = strategy.limit_price if strategy.order_type == OrderType.LIMIT.value else None
         order_id = await self.place_order(
             instrument=instrument,
             side=side,
             quantity=quantity,
-            order_type=self.order_type,
+            order_type=strategy.order_type,
             price=price,
             explanation=f"AML institutional child order toward target {target}",
         )
         if order_id:
             self.logger.info(
                 f"AMLInstitutionalTrader {self.agent_id} placed {side} "
-                f"{self.order_type} order for {quantity} {instrument} "
+                f"{strategy.order_type} order for {quantity} {instrument} "
                 f"(current={current}, target={target})"
             )

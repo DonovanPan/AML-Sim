@@ -1,12 +1,47 @@
 """AML-specific trading agents owned by AML-Sim."""
 
-from aml_sim.agents.institutional_trader import AMLInstitutionalTrader
-from aml_sim.agents.market_maker_trader import AMLMarketMakerTrader
-from aml_sim.agents.retail_trader import AMLRetailTrader
-
 __all__ = [
+    "AgentProfile",
     "AMLInstitutionalTrader",
     "AMLMarketMakerTrader",
     "AMLRetailTrader",
+    "InstitutionalProfile",
+    "MarketMakerProfile",
+    "RetailProfile",
 ]
 
+
+def __getattr__(name: str):
+    if name in {
+        "AgentProfile",
+        "InstitutionalProfile",
+        "MarketMakerProfile",
+        "RetailProfile",
+    }:
+        from aml_sim.agents.models.profile import (
+            AgentProfile,
+            InstitutionalProfile,
+            MarketMakerProfile,
+            RetailProfile,
+        )
+
+        return {
+            "AgentProfile": AgentProfile,
+            "InstitutionalProfile": InstitutionalProfile,
+            "MarketMakerProfile": MarketMakerProfile,
+            "RetailProfile": RetailProfile,
+        }[name]
+    if name == "AMLInstitutionalTrader":
+        from aml_sim.agents.institutional_trader import AMLInstitutionalTrader
+
+        return AMLInstitutionalTrader
+    if name == "AMLMarketMakerTrader":
+        from aml_sim.agents.market_maker_trader import AMLMarketMakerTrader
+
+        return AMLMarketMakerTrader
+    if name == "AMLRetailTrader":
+        from aml_sim.agents.retail_trader import AMLRetailTrader
+
+        return AMLRetailTrader
+
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

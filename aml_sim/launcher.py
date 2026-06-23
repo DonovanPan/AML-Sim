@@ -206,25 +206,23 @@ def build_agent_param_customizers(
     interval_to_seconds: Any,
 ) -> dict[str, Any]:
     """Create parameter transforms for AML-owned agent types."""
+    def normalize_aml_agent_params(params: dict[str, Any], default_action_interval: int) -> dict[str, Any]:
+        normalized = {
+            **params,
+            "action_interval_seconds": interval_to_seconds(params["action_interval"])
+            if "action_interval" in params
+            else params.get("action_interval_seconds", default_action_interval),
+        }
+        if "slow_loop_interval" in params:
+            normalized["slow_loop_interval_seconds"] = interval_to_seconds(
+                params["slow_loop_interval"]
+            )
+        return normalized
+
     return {
-        "AML_Market_Maker": lambda params: {
-            **params,
-            "action_interval_seconds": interval_to_seconds(params["action_interval"])
-            if "action_interval" in params
-            else params.get("action_interval_seconds", 60),
-        },
-        "AML_Retail_Trader": lambda params: {
-            **params,
-            "action_interval_seconds": interval_to_seconds(params["action_interval"])
-            if "action_interval" in params
-            else params.get("action_interval_seconds", 60),
-        },
-        "AML_Institutional_Trader": lambda params: {
-            **params,
-            "action_interval_seconds": interval_to_seconds(params["action_interval"])
-            if "action_interval" in params
-            else params.get("action_interval_seconds", 300),
-        },
+        "AML_Market_Maker": lambda params: normalize_aml_agent_params(params, 60),
+        "AML_Retail_Trader": lambda params: normalize_aml_agent_params(params, 60),
+        "AML_Institutional_Trader": lambda params: normalize_aml_agent_params(params, 300),
     }
 
 
@@ -241,6 +239,7 @@ def launch_stocksim(
 
     env_updates = load_env_file(env_file)
     env_updates["LOG_DIR"] = str(aml_run.logs_dir)
+    env_updates["METRICS_OUTPUT_DIR"] = str(aml_run.reports_dir / "agents")
     if scenario.rabbitmq_host:
         env_updates["RABBITMQ_HOST"] = scenario.rabbitmq_host
 
@@ -357,10 +356,19 @@ def run_stocksim_components(
         signal.signal(signal.SIGINT, previous_sigint)
         signal.signal(signal.SIGTERM, previous_sigterm)
 
-    if exit_code == 0 and generate_reports:
-        generate_stocksim_reports(config, aml_run)
+    if exit_code == 0:
+        generate_aml_reports(aml_run)
+        if generate_reports:
+            generate_stocksim_reports(config, aml_run)
 
     return exit_code
+
+
+def generate_aml_reports(aml_run: AMLRun) -> None:
+    """Generate AML-owned reports from run-local agent artifacts."""
+    from aml_sim.reporting import generate_trader_action_report
+
+    generate_trader_action_report(aml_run.reports_dir / "agents", aml_run.reports_dir)
 
 
 def generate_stocksim_reports(config: dict[str, Any], aml_run: AMLRun) -> None:

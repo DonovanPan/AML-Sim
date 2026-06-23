@@ -23,12 +23,23 @@ stocksim_config:
       count: 1
       parameters:
         initial_cash: 1000000
-        action_interval: 1m
+        action_interval: 30s
+        slow_loop_interval: 5m
         fair_price: 100.0
         spread: 0.2
         quote_size: 100
         target_inventory: 10000
         inventory_skew: 0.001
+        profile:
+          name: baseline_market_maker
+          risk_tolerance: medium
+          decision_style: inventory_aware_quoting
+          inventory_discipline: 0.7
+          quote_aggressiveness: 0.5
+          behavioral_traits:
+            adverse_selection_sensitivity: 0.6
+          preferences:
+            quoting_style: balanced
         initial_positions:
           AAPL: 10000
         initial_cost_basis:
@@ -40,9 +51,21 @@ stocksim_config:
       parameters:
         initial_cash: 25000
         action_interval: 1m
-        trade_probability: 0.35
-        max_order_size: 20
+        slow_loop_interval: 5m
+        trade_probability: 0.45
+        max_order_size: 10
         buy_bias: 0.5
+        profile:
+          name: baseline_retail
+          risk_tolerance: medium
+          decision_style: noisy_sentiment_driven
+          social_sensitivity: 0.5
+          panic_sensitivity: 0.4
+          herding_tendency: 0.4
+          behavioral_traits:
+            overreaction: 0.3
+          preferences:
+            order_style: market
         initial_positions:
           AAPL: 0
         initial_cost_basis:
@@ -53,11 +76,23 @@ stocksim_config:
       count: 1
       parameters:
         initial_cash: 500000
-        action_interval: 5m
+        action_interval: 2m
+        slow_loop_interval: 10m
         target_positions:
           AAPL: 500
-        child_order_size: 100
+        child_order_size: 50
         order_type: MARKET
+        profile:
+          name: baseline_institution
+          risk_tolerance: medium
+          decision_style: target_execution
+          execution_patience: 0.6
+          benchmark_focus: arrival_price
+          information_sensitivity: 0.5
+          behavioral_traits:
+            urgency_discipline: 0.6
+          preferences:
+            execution_style: sliced
         initial_positions:
           AAPL: 0
         initial_cost_basis:
@@ -66,7 +101,7 @@ stocksim_config:
   simulation:
     start_time: "2025-03-01T09:30:00Z"
     end_time: "2025-03-01T10:00:00Z"
-    tick_interval: 5m
+    tick_interval: 30s
     expected_exchange_agent_count: 1
 
   environment:

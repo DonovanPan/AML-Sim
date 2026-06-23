@@ -5,14 +5,24 @@ Models a small, noisy participant that trades occasionally with small market
 orders. Later this agent can react to synthetic news and herding signals.
 """
 
-import random
-from typing import Any, Dict, Optional
+from __future__ import annotations
 
-from agents.benchmark_traders.trader import TraderAgent
+import random
+from typing import Any, Dict, Mapping, Optional
+
+from aml_sim.agents.base import BaseAMLAgent
+from aml_sim.agents.context.memory import MemoryBackend
+from aml_sim.agents.context.observation import ObservationProcessor
+from aml_sim.agents.models.profile import RetailProfile, coerce_profile
+from aml_sim.agents.strategy.llm_slow_strategy import (
+    SlowStrategist,
+    create_static_retail_llm_strategist,
+)
+from aml_sim.agents.models.state import RetailStrategyState
 from utils.orders import OrderType, Side
 
 
-class AMLRetailTrader(TraderAgent):
+class AMLRetailTrader(BaseAMLAgent):
     """
     Basic retail-style participant for synthetic AML markets.
 
@@ -27,6 +37,11 @@ class AMLRetailTrader(TraderAgent):
         max_order_size: int = 25,
         buy_bias: float = 0.5,
         random_seed: Optional[int] = None,
+        profile: Optional[RetailProfile | Mapping[str, Any]] = None,
+        memory: Optional[MemoryBackend] = None,
+        observation_processor: Optional[ObservationProcessor] = None,
+        slow_loop_interval_seconds: Optional[int] = None,
+        slow_strategist: Optional[SlowStrategist] = None,
         agent_id: Optional[str] = None,
         rabbitmq_host: str = "localhost",
         **kwargs,
@@ -43,40 +58,38 @@ class AMLRetailTrader(TraderAgent):
 
         super().__init__(
             instrument_exchange_map=instrument_exchange_map,
+            strategy_state=RetailStrategyState(
+                trade_probability=trade_probability,
+                max_order_size=max(1, max_order_size),
+                buy_bias=buy_bias,
+            ),
+            profile=coerce_profile(profile, RetailProfile),
+            memory=memory,
+            observation_processor=observation_processor,
+            slow_strategist=slow_strategist or create_static_retail_llm_strategist(),
+            slow_loop_interval_seconds=slow_loop_interval_seconds,
             agent_id=agent_id,
             rabbitmq_host=rabbitmq_host,
             **trader_kwargs,
         )
-
-        self.trade_probability = max(0.0, min(1.0, trade_probability))
-        self.max_order_size = max(1, max_order_size)
-        self.buy_bias = max(0.0, min(1.0, buy_bias))
         self.random = random.Random(random_seed)
 
         self.logger.info(
             f"AMLRetailTrader {self.agent_id} initialized: "
-            f"trade_probability={self.trade_probability}, "
-            f"max_order_size={self.max_order_size}, buy_bias={self.buy_bias}"
+            f"strategy_state={self.strategy_state}"
         )
 
-    async def handle_time_tick(self, payload: Dict[str, Any]) -> None:
-        await super().handle_time_tick(payload)
-
-        current_time = self.current_time
-        if self.next_action_time is None:
-            self.next_action_time = current_time
-
-        if current_time >= self.next_action_time:
-            for instrument in self.instrument_exchange_map.keys():
-                await self._maybe_trade(instrument)
-            self.next_action_time = current_time + self.action_interval
+    async def run_fast_loop(self, observation: Mapping[str, Any]) -> None:
+        for instrument in self.instrument_exchange_map.keys():
+            await self._maybe_trade(instrument)
 
     async def _maybe_trade(self, instrument: str) -> None:
-        if self.random.random() > self.trade_probability:
+        strategy = self.strategy_state
+        if self.random.random() > strategy.trade_probability:
             return
 
-        quantity = self.random.randint(1, self.max_order_size)
-        side = Side.BUY.value if self.random.random() < self.buy_bias else Side.SELL.value
+        quantity = self.random.randint(1, strategy.max_order_size)
+        side = Side.BUY.value if self.random.random() < strategy.buy_bias else Side.SELL.value
 
         if side == Side.SELL.value:
             held = self.long_qty[instrument]
@@ -97,4 +110,3 @@ class AMLRetailTrader(TraderAgent):
                 f"AMLRetailTrader {self.agent_id} placed {side} market order "
                 f"for {quantity} {instrument}"
             )
-

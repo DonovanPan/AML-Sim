@@ -6,6 +6,7 @@ import json
 import os
 import traceback
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 
@@ -157,3 +158,55 @@ def generate_post_simulation_artifacts(config: dict[str, Any]) -> None:
     except Exception as exc:
         print(f"Failed to generate post-simulation artifacts: {exc}")
         print(traceback.format_exc())
+
+
+def generate_trader_action_report(agent_reports_dir: Path, reports_dir: Path) -> None:
+    """Combine per-agent AML action ledgers into one report JSON file."""
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    agent_reports_dir.mkdir(parents=True, exist_ok=True)
+
+    action_files = sorted(agent_reports_dir.glob("trader_actions_*.json"))
+    actions: list[dict[str, Any]] = []
+    by_agent: dict[str, dict[str, Any]] = {}
+
+    for action_file in action_files:
+        agent_id = action_file.stem.removeprefix("trader_actions_")
+        try:
+            with action_file.open("r", encoding="utf-8") as handle:
+                agent_actions = json.load(handle)
+        except Exception as exc:
+            print(f"Failed to read trader action file {action_file}: {exc}")
+            continue
+
+        if not isinstance(agent_actions, list):
+            print(f"Skipping trader action file with non-list payload: {action_file}")
+            continue
+
+        by_agent[agent_id] = {
+            "action_count": len(agent_actions),
+            "submitted_orders": sum(
+                1 for action in agent_actions if action.get("event_type") == "order_submitted"
+            ),
+            "rejected_orders": sum(
+                1 for action in agent_actions if action.get("event_type") == "order_rejected"
+            ),
+            "executed_trades": sum(
+                1 for action in agent_actions if action.get("event_type") == "trade_executed"
+            ),
+        }
+        actions.extend(agent_actions)
+
+    actions.sort(key=lambda action: (action.get("timestamp") or "", action.get("agent_id") or ""))
+    report = {
+        "generated_at": datetime.now().isoformat(),
+        "source_directory": str(agent_reports_dir),
+        "action_count": len(actions),
+        "agents": by_agent,
+        "actions": actions,
+    }
+
+    output_file = reports_dir / "trader_actions.json"
+    with output_file.open("w", encoding="utf-8") as handle:
+        json.dump(report, handle, indent=2)
+
+    print(f"Generated AML trader action report: {output_file}")
