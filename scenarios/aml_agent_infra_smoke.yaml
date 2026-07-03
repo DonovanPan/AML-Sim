@@ -1,7 +1,9 @@
-name: aml_orderbook_replay
+name: aml_agent_infra_smoke
 description: >
-  First AML wrapper orderbook smoke test. This keeps StockSim unchanged and
-  runs AAPL with the minimum synthetic AML market roles.
+  Short AML agent-infra smoke test with multiple market participants, one
+  institutional agent with internal target/momentum/mean-reversion strategy
+  modes, and one shock event that changes fundamentals, order arrivals, risk,
+  and liquidity.
 rabbitmq_host: localhost
 
 stocksim_config:
@@ -20,71 +22,93 @@ stocksim_config:
   agents:
     market_maker:
       type: AML_Market_Maker
-      count: 1
+      count: 2
       parameters:
-        initial_cash: 1000000
+        initial_cash: 500000
         action_interval: 30s
         slow_loop_interval: 5m
         fair_price: 100.0
         spread: 0.2
         min_spread: 0.05
         max_spread: 1.5
-        quote_size: 100
+        quote_size: 80
         quote_levels: 5
         level_spacing: 0.05
         size_decay: 0.85
-        target_inventory: 10000
+        target_inventory: 4000
         inventory_skew: 0.001
+        max_inventory: 6500
+        min_inventory: 400
         volatility_sensitivity: 5.0
         shock_spread_multiplier: 1.2
         shock_price_adjustment: 0.4
         liquidity_withdrawal_sensitivity: 0.35
-        profile:
-          name: baseline_market_maker
-          risk_tolerance: medium
-          decision_style: inventory_aware_quoting
-          inventory_discipline: 0.7
-          quote_aggressiveness: 0.5
-          behavioral_traits:
-            adverse_selection_sensitivity: 0.6
-          preferences:
-            quoting_style: balanced
         initial_positions:
-          AAPL: 10000
+          AAPL: 4000
         initial_cost_basis:
           AAPL: 100.0
 
     retail_population:
       type: AML_Retail_Trader
-      count: 1
+      count: 3
       parameters:
         initial_cash: 25000
         action_interval: 1m
         slow_loop_interval: 5m
-        trade_probability: 0.45
+        trade_probability: 0.4
         max_order_size: 10
         buy_bias: 0.5
         herding_tendency: 0.35
         panic_level: 0.45
         sentiment_sensitivity: 0.55
         shock_sensitivity: 0.5
-        profile:
-          name: baseline_retail
-          risk_tolerance: medium
-          decision_style: noisy_sentiment_driven
-          social_sensitivity: 0.5
-          panic_sensitivity: 0.4
-          herding_tendency: 0.4
-          behavioral_traits:
-            overreaction: 0.3
-          preferences:
-            order_style: market
         initial_positions:
-          AAPL: 0
+          AAPL: 5
         initial_cost_basis:
           AAPL: 100.0
 
-    institutional_trader:
+    informed_trader:
+      type: AML_Informed_Trader
+      count: 1
+      parameters:
+        initial_cash: 200000
+        action_interval: 1m
+        slow_loop_interval: 5m
+        fair_value_anchor: 100.0
+        information_edge: 0.7
+        trade_probability: 0.45
+        max_order_size: 35
+        max_position: 500
+        min_position: 0
+        signal_threshold: 0.0015
+        momentum_weight: 0.2
+        fundamental_sensitivity: 1.0
+        shock_reactivity: 1.0
+        order_type: MARKET
+        initial_positions:
+          AAPL: 100
+        initial_cost_basis:
+          AAPL: 100.0
+
+    liquidity_taker:
+      type: AML_Liquidity_Taker
+      count: 1
+      parameters:
+        initial_cash: 100000
+        action_interval: 1m
+        slow_loop_interval: 5m
+        flow_intensity: 0.35
+        buy_bias: 0.52
+        max_order_size: 25
+        inventory_limit: 400
+        shock_sensitivity: 0.75
+        aggression: 0.8
+        initial_positions:
+          AAPL: 50
+        initial_cost_basis:
+          AAPL: 100.0
+
+    institutional_execution:
       type: AML_Institutional_Trader
       count: 1
       parameters:
@@ -92,7 +116,7 @@ stocksim_config:
         action_interval: 2m
         slow_loop_interval: 10m
         target_positions:
-          AAPL: 500
+          AAPL: 200
         child_order_size: 50
         order_type: MARKET
         alpha_strategy: target_execution
@@ -103,19 +127,8 @@ stocksim_config:
         strategy_weights:
           momentum: 0.5
           mean_reversion: 0.5
-        max_position: 500
+        max_position: 200
         min_position: 0
-        profile:
-          name: baseline_institution
-          risk_tolerance: medium
-          decision_style: target_execution
-          execution_patience: 0.6
-          benchmark_focus: arrival_price
-          information_sensitivity: 0.5
-          behavioral_traits:
-            urgency_discipline: 0.6
-          preferences:
-            execution_style: sliced
         initial_positions:
           AAPL: 0
         initial_cost_basis:
@@ -125,21 +138,25 @@ stocksim_config:
       type: AML_Shock_Agent
       count: 1
       parameters:
-        default_duration_ticks: 12
+        default_duration_ticks: 8
         scheduled_events:
-          - id: negative_news_1
-            tick: 8
+          - id: smoke_negative_news
+            tick: 3
             shock_type: negative_news
-            severity: 0.65
+            severity: 0.7
             direction: -1
+            fundamental_price_shift: -0.8
+            order_arrival_multiplier: 1.8
+            risk_limit_multiplier: 0.6
+            liquidity_multiplier: 0.5
             affected_instruments:
               - AAPL
-            duration_ticks: 12
-            message: Synthetic negative news shock for AML behavior study.
+            duration_ticks: 8
+            message: Short smoke-test negative news shock.
 
   simulation:
     start_time: "2025-03-01T09:30:00Z"
-    end_time: "2025-03-01T10:00:00Z"
+    end_time: "2025-03-01T09:34:00Z"
     tick_interval: 30s
     expected_exchange_agent_count: 1
 

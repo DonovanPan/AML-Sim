@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-import copy
 import inspect
 import json
 import os
 from abc import abstractmethod
 from dataclasses import asdict, is_dataclass
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Any, Callable, Mapping, Optional
 
 from aml_sim.agents.context.memory import LocalAgentMemory, MemoryBackend
@@ -18,6 +17,7 @@ from aml_sim.agents.strategy.llm_slow_strategy import SlowStrategist
 from aml_sim.agents.strategy.validator import StrategyValidationError, validate_strategy_state
 from aml_sim.serialization import serialize_value
 from agents.benchmark_traders.trader import TraderAgent
+from utils.messages import MessageType
 
 
 class BaseAMLAgent(TraderAgent):
@@ -71,6 +71,10 @@ class BaseAMLAgent(TraderAgent):
         )
         self.next_slow_loop_time = None
         self.action_events: list[dict[str, Any]] = []
+        self.recent_events: list[dict[str, Any]] = []
+        self.price_history: dict[str, list[dict[str, Any]]] = {
+            instrument: [] for instrument in self.instrument_exchange_map.keys()
+        }
         self.logger.info(
             f"{self.agent_id} slow loop configured: "
             f"strategist={type(self.slow_strategist).__name__}, "
@@ -104,6 +108,7 @@ class BaseAMLAgent(TraderAgent):
         fresh_observation = self.observation_processor.build_context(
             self,
             profile=self.profile,
+            events=self._active_events(),
         )
         memory_context = self.memory.retrieve_context(
             self.agent_id,
@@ -113,6 +118,7 @@ class BaseAMLAgent(TraderAgent):
             self,
             profile=self.profile,
             memory=memory_context,
+            events=self._active_events(),
         )
 
     def slow_loop_due(self) -> bool:
@@ -175,6 +181,19 @@ class BaseAMLAgent(TraderAgent):
             return dict(strategy_state)
         return dict(vars(strategy_state))
 
+    async def _handle_regular_message(self, msg: dict[str, Any]) -> None:
+        if msg.get("type") == MessageType.STATUS_UPDATE.value:
+            payload = msg.get("payload", {}) or {}
+            if payload.get("event_type") == "AML_SHOCK":
+                self._handle_aml_event(payload)
+                return
+
+        await super()._handle_regular_message(msg)
+
+    async def _handle_portfolio_update(self, payload: dict[str, Any]) -> None:
+        await super()._handle_portfolio_update(payload)
+        self._record_price(payload.get("instrument"), payload.get("close_price"))
+
     async def place_order(
         self,
         instrument: str,
@@ -219,6 +238,11 @@ class BaseAMLAgent(TraderAgent):
     async def on_trade_execution(self, trade_data: dict[str, Any]) -> None:
         before = self._portfolio_snapshot()
         await super().on_trade_execution(trade_data)
+        self._cleanup_completed_market_order(
+            trade_data.get("order_id"),
+            trade_data.get("order_status"),
+        )
+        self._record_price(trade_data.get("instrument"), trade_data.get("price"))
         self._record_action_event(
             {
                 "event_type": "trade_executed",
@@ -237,10 +261,94 @@ class BaseAMLAgent(TraderAgent):
             }
         )
 
+    async def _handle_order_confirmation(self, payload: dict[str, Any]) -> None:
+        await super()._handle_order_confirmation(payload)
+        self._cleanup_completed_market_order(
+            payload.get("order_id"),
+            payload.get("status"),
+        )
+
+    def _cleanup_completed_market_order(self, order_id: Any, status: Any) -> None:
+        if not order_id:
+            return
+        pending = self.pending_orders.get(str(order_id))
+        if not pending:
+            return
+        if str(pending.get("order_type", "")).upper() != "MARKET":
+            return
+        normalized_status = str(status or "").upper()
+        if normalized_status in {"FILLED", "PARTIALLY_FILLED", "CANCELED", "REJECTED"}:
+            self.pending_orders.pop(str(order_id), None)
+
     def _record_action_event(self, event: dict[str, Any]) -> None:
         event.setdefault("agent_id", self.agent_id)
         event.setdefault("timestamp", self.current_time.isoformat() if self.current_time else None)
         self.action_events.append(serialize_value(event))
+
+    def _handle_aml_event(self, event: Mapping[str, Any]) -> None:
+        observed = serialize_value(dict(event))
+        observed.setdefault("observed_at", self.current_time.isoformat() if self.current_time else None)
+        observed.setdefault("observed_tick_id", self.current_tick_id)
+        self.recent_events.append(observed)
+        self.recent_events = self.recent_events[-50:]
+        self._record_action_event(
+            {
+                "event_type": "event_observed",
+                "shock_id": observed.get("shock_id"),
+                "shock_type": observed.get("shock_type"),
+                "severity": observed.get("severity"),
+                "direction": observed.get("direction"),
+                "fundamental_price_shift": observed.get("fundamental_price_shift"),
+                "order_arrival_multiplier": observed.get("order_arrival_multiplier"),
+                "risk_limit_multiplier": observed.get("risk_limit_multiplier"),
+                "liquidity_multiplier": observed.get("liquidity_multiplier"),
+                "affected_instruments": observed.get("affected_instruments"),
+            }
+        )
+        self.logger.info(
+            f"{self.agent_id} observed AML shock: "
+            f"type={observed.get('shock_type')}, severity={observed.get('severity')}, "
+            f"direction={observed.get('direction')}"
+        )
+
+    def _active_events(self) -> list[dict[str, Any]]:
+        active: list[dict[str, Any]] = []
+        current_tick = self.current_tick_id
+
+        for event in self.recent_events:
+            duration = event.get("duration_ticks")
+            start_tick = event.get("tick_id", event.get("emitted_tick_id"))
+            if current_tick is None or duration is None or start_tick is None:
+                active.append(event)
+                continue
+            try:
+                if int(current_tick) <= int(start_tick) + int(duration):
+                    active.append(event)
+            except (TypeError, ValueError):
+                active.append(event)
+
+        return active[-20:]
+
+    def _record_price(self, instrument: Any, price: Any) -> None:
+        if not instrument:
+            return
+        try:
+            clean_price = float(price)
+        except (TypeError, ValueError):
+            return
+        if clean_price <= 0:
+            return
+
+        series = self.price_history.setdefault(str(instrument), [])
+        series.append(
+            {
+                "timestamp": self.current_time.isoformat() if self.current_time else None,
+                "tick_id": self.current_tick_id,
+                "price": clean_price,
+            }
+        )
+        if len(series) > 250:
+            del series[:-250]
 
     def _portfolio_snapshot(self) -> dict[str, Any]:
         instruments = list(self.instrument_exchange_map.keys())

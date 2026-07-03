@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field, is_dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Mapping, Optional, Protocol
 

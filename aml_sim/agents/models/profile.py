@@ -30,6 +30,8 @@ class MarketMakerProfile(AgentProfile):
     decision_style: str = "inventory_aware_quoting"
     inventory_discipline: float = 0.7
     quote_aggressiveness: float = 0.5
+    adverse_selection_sensitivity: float = 0.6
+    liquidity_resilience: float = 0.5
 
 
 @dataclass
@@ -42,6 +44,8 @@ class RetailProfile(AgentProfile):
     social_sensitivity: float = 0.5
     panic_sensitivity: float = 0.4
     herding_tendency: float = 0.4
+    news_reactivity: float = 0.5
+    loss_aversion: float = 0.5
 
 
 @dataclass
@@ -54,6 +58,33 @@ class InstitutionalProfile(AgentProfile):
     execution_patience: float = 0.6
     benchmark_focus: str = "arrival_price"
     information_sensitivity: float = 0.5
+    alpha_horizon: str = "intraday"
+    market_impact_aversion: float = 0.6
+
+
+@dataclass
+class InformedProfile(AgentProfile):
+    """Profile defaults for a participant trading from a private value signal."""
+
+    role: str = "informed_trader"
+    risk_tolerance: str = "medium"
+    decision_style: str = "private_signal_value_trading"
+    information_quality: float = 0.7
+    patience: float = 0.45
+    adverse_selection_tolerance: float = 0.6
+    conviction: float = 0.65
+
+
+@dataclass
+class LiquidityTakerProfile(AgentProfile):
+    """Profile defaults for a participant that consumes displayed liquidity."""
+
+    role: str = "liquidity_taker"
+    risk_tolerance: str = "medium"
+    decision_style: str = "aggressive_flow_execution"
+    immediacy_preference: float = 0.8
+    market_impact_tolerance: float = 0.6
+    flow_persistence: float = 0.5
 
 
 ProfileT = TypeVar("ProfileT", bound=AgentProfile)

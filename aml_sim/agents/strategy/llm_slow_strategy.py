@@ -241,6 +241,28 @@ STATIC_INSTITUTIONAL_RESPONSE = {
 }
 
 
+STATIC_INFORMED_RESPONSE = {
+    "strategy_updates": {
+        "risk_mode": "normal",
+        "trade_probability": 0.38,
+        "information_edge": 0.72,
+    },
+    "confidence": 0.74,
+    "reason": "Static informed-trader LLM test response: keep trading only when the private value signal is strong.",
+}
+
+
+STATIC_LIQUIDITY_TAKER_RESPONSE = {
+    "strategy_updates": {
+        "risk_mode": "normal",
+        "flow_intensity": 0.38,
+        "aggression": 0.75,
+    },
+    "confidence": 0.7,
+    "reason": "Static liquidity-taker LLM test response: maintain steady aggressive flow with bounded size.",
+}
+
+
 def create_static_market_maker_llm_strategist() -> LLMStrategist:
     """Create a fixed-response LLM strategist for market-maker path tests."""
 
@@ -257,3 +279,15 @@ def create_static_institutional_llm_strategist() -> LLMStrategist:
     """Create a fixed-response LLM strategist for institutional path tests."""
 
     return LLMStrategist(client=StaticJSONLLMClient(STATIC_INSTITUTIONAL_RESPONSE))
+
+
+def create_static_informed_llm_strategist() -> LLMStrategist:
+    """Create a fixed-response LLM strategist for informed-trader path tests."""
+
+    return LLMStrategist(client=StaticJSONLLMClient(STATIC_INFORMED_RESPONSE))
+
+
+def create_static_liquidity_taker_llm_strategist() -> LLMStrategist:
+    """Create a fixed-response LLM strategist for liquidity-taker path tests."""
+
+    return LLMStrategist(client=StaticJSONLLMClient(STATIC_LIQUIDITY_TAKER_RESPONSE))

@@ -1,0 +1,2585 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AML-Sim Market Lab</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #050609;
+      --surface: #090d12;
+      --panel: #0d1218;
+      --panel-2: #131922;
+      --panel-3: #080c11;
+      --line: #242b36;
+      --line-soft: #18202a;
+      --text: #f3f6fb;
+      --muted: #8591a3;
+      --muted-2: #596373;
+      --bid: #19c37d;
+      --bid-soft: rgba(25, 195, 125, 0.16);
+      --bid-line: rgba(25, 195, 125, 0.62);
+      --ask: #ff4d5d;
+      --ask-soft: rgba(255, 77, 93, 0.16);
+      --ask-line: rgba(255, 77, 93, 0.62);
+      --amber: #f2b84b;
+      --amber-soft: rgba(242, 184, 75, 0.16);
+      --cyan: #38bdf8;
+      --cyan-soft: rgba(56, 189, 248, 0.12);
+      --violet: #a78bfa;
+      --shadow: rgba(0, 0, 0, 0.38);
+      --mono: "SFMono-Regular", "Roboto Mono", "Cascadia Code", ui-monospace, monospace;
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      min-height: 100%;
+      margin: 0;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 210px),
+        var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      letter-spacing: 0;
+    }
+
+    button,
+    select,
+    input {
+      color: inherit;
+      font: inherit;
+      letter-spacing: 0;
+    }
+
+    button {
+      min-height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #141a22;
+      padding: 0 12px;
+      color: #dce7f4;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 680;
+    }
+
+    button:hover {
+      border-color: #384252;
+      background: #1a2029;
+    }
+
+    button.primary {
+      border-color: rgba(25, 195, 125, 0.48);
+      background: linear-gradient(180deg, #1d5f4a, #154636);
+      color: #f2fff9;
+    }
+
+    button.primary:hover {
+      border-color: rgba(25, 195, 125, 0.76);
+      background: linear-gradient(180deg, #257057, #18513f);
+    }
+
+    input[type="text"] {
+      width: 190px;
+      min-height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      outline: none;
+      background: #080b0f;
+      padding: 0 10px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+
+    select {
+      min-height: 34px;
+      max-width: 250px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      outline: none;
+      background: #080b0f;
+      padding: 0 9px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+
+    input[type="file"] {
+      position: absolute;
+      inline-size: 1px;
+      block-size: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: grid;
+      grid-template-columns: minmax(285px, 0.72fr) minmax(320px, 1fr) auto;
+      align-items: center;
+      gap: 18px;
+      min-height: 66px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(5, 6, 7, 0.92);
+      padding: 12px 16px;
+      backdrop-filter: blur(18px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      display: grid;
+      width: 36px;
+      height: 36px;
+      place-items: center;
+      border: 1px solid rgba(56, 189, 248, 0.34);
+      border-radius: 7px;
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.15), rgba(25, 195, 125, 0.08));
+      color: var(--cyan);
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 760;
+      line-height: 1.1;
+      white-space: nowrap;
+    }
+
+    .brand small {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 11px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .market-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .chip,
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 28px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.025);
+      padding: 0 10px;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .pill {
+      border-radius: 6px;
+      min-height: 28px;
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--bid);
+      box-shadow: 0 0 16px rgba(25, 195, 125, 0.85);
+    }
+
+    .dot.red {
+      background: var(--ask);
+      box-shadow: 0 0 16px rgba(255, 77, 93, 0.85);
+    }
+
+    .dot.amber {
+      background: var(--amber);
+      box-shadow: 0 0 16px rgba(242, 184, 75, 0.8);
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 7px;
+      flex-wrap: wrap;
+      min-width: 0;
+    }
+
+    .file-label {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #151a21;
+      padding: 0 10px;
+      color: #dce5f2;
+      font-size: 12px;
+      font-weight: 680;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .file-label:hover {
+      border-color: #384252;
+      background: #1a2029;
+    }
+
+    .ticker {
+      display: grid;
+      grid-template-columns: repeat(8, minmax(116px, 1fr));
+      gap: 1px;
+      border-bottom: 1px solid var(--line);
+      background: var(--line);
+      padding: 0 14px;
+    }
+
+    .ticker-cell {
+      min-height: 58px;
+      background: rgba(10, 13, 16, 0.96);
+      padding: 9px 10px;
+      overflow: hidden;
+    }
+
+    .ticker-cell span {
+      display: block;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 720;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .ticker-cell strong {
+      display: block;
+      margin-top: 5px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 15px;
+      font-weight: 760;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .terminal {
+      display: grid;
+      grid-template-columns: 300px minmax(680px, 1fr) 420px;
+      gap: 10px;
+      width: min(1920px, 100%);
+      margin: 0 auto;
+      padding: 10px;
+    }
+
+    .rail,
+    .main-stack {
+      display: grid;
+      gap: 8px;
+      align-content: start;
+      min-width: 0;
+    }
+
+    .panel {
+      min-width: 0;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(15, 19, 24, 0.96);
+      box-shadow: 0 16px 34px var(--shadow);
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-height: 42px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.006));
+      padding: 0 11px;
+    }
+
+    .panel-head h2 {
+      margin: 0;
+      color: #dbe5f3;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    .panel-head .meta {
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .overview {
+      display: grid;
+      gap: 9px;
+      padding: 10px;
+    }
+
+    .overview-symbol {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .overview-symbol strong {
+      display: block;
+      font-family: var(--mono);
+      font-size: 26px;
+      line-height: 1;
+    }
+
+    .overview-symbol span {
+      display: block;
+      margin-top: 5px;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 11px;
+    }
+
+    .overview-price {
+      color: var(--bid);
+      font-family: var(--mono);
+      font-size: 21px;
+      font-weight: 780;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 7px;
+    }
+
+    .mini-metric {
+      min-height: 58px;
+      border: 1px solid var(--line-soft);
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.018);
+      padding: 8px;
+    }
+
+    .mini-metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .mini-metric strong {
+      display: block;
+      margin-top: 7px;
+      font-family: var(--mono);
+      font-size: 13px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .chart-panel {
+      min-height: 600px;
+    }
+
+    .chart-toolbar {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      align-items: center;
+      gap: 12px;
+      min-height: 62px;
+      border-bottom: 1px solid var(--line);
+      background: #0b0f14;
+      padding: 8px 12px;
+    }
+
+    .symbol-block {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .symbol-block strong {
+      font-family: var(--mono);
+      font-size: 24px;
+      font-weight: 780;
+      white-space: nowrap;
+    }
+
+    .symbol-block .last {
+      color: var(--bid);
+      font-family: var(--mono);
+      font-size: 19px;
+      font-weight: 760;
+      white-space: nowrap;
+    }
+
+    .symbol-block .delta {
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .segmented,
+    .timeframes {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #070a0e;
+      padding: 2px;
+    }
+
+    .segmented span,
+    .timeframes span {
+      display: inline-flex;
+      align-items: center;
+      min-height: 25px;
+      border-radius: 5px;
+      padding: 0 8px;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 10px;
+      white-space: nowrap;
+    }
+
+    .segmented span.active,
+    .timeframes span.active {
+      background: #18202a;
+      color: #e6eef8;
+    }
+
+    .chart-canvas-wrap {
+      position: relative;
+      height: clamp(440px, 52vh, 660px);
+      background:
+        linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px),
+        #070a0e;
+      background-size: 56px 48px;
+      padding: 0;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .chart-footer {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 1px;
+      border-top: 1px solid var(--line);
+      background: var(--line);
+    }
+
+    .chart-stat {
+      min-height: 54px;
+      background: #0c1117;
+      padding: 9px 11px;
+    }
+
+    .chart-stat span {
+      display: block;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 740;
+      text-transform: uppercase;
+    }
+
+    .chart-stat strong {
+      display: block;
+      margin-top: 5px;
+      font-family: var(--mono);
+      font-size: 14px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .book-panel {
+      display: grid;
+      grid-template-rows: auto auto 1fr auto 1fr auto;
+      min-height: 600px;
+      background: #090c10;
+    }
+
+    .book-top {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+      min-height: 50px;
+      border-bottom: 1px solid var(--line);
+      padding: 9px 11px;
+    }
+
+    .book-top strong {
+      display: block;
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .book-top span {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 11px;
+    }
+
+    .book-columns,
+    .book-row {
+      display: grid;
+      grid-template-columns: 88px 1fr 52px 76px;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .book-columns {
+      min-height: 28px;
+      border-bottom: 1px solid var(--line-soft);
+      padding: 0 10px;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 10px;
+      text-transform: uppercase;
+    }
+
+    .book-rows {
+      overflow: hidden;
+      min-height: 205px;
+    }
+
+    .book-row {
+      position: relative;
+      min-height: 23px;
+      padding: 0 10px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: #dde6f3;
+    }
+
+    .book-row::before {
+      content: "";
+      position: absolute;
+      inset: 2px 0 2px auto;
+      width: var(--bar, 0%);
+      pointer-events: none;
+    }
+
+    .book-row.ask::before { background: linear-gradient(90deg, transparent, var(--ask-soft)); }
+    .book-row.bid::before { background: linear-gradient(90deg, transparent, var(--bid-soft)); }
+    .book-row span { position: relative; z-index: 1; }
+    .book-row .price.ask-price { color: var(--ask); }
+    .book-row .price.bid-price { color: var(--bid); }
+    .num { text-align: right; }
+
+    .midline {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 9px;
+      min-height: 46px;
+      border-block: 1px solid var(--line);
+      background: #111720;
+      padding: 0 11px;
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+
+    .midline strong {
+      color: var(--text);
+      font-size: 18px;
+      white-space: nowrap;
+    }
+
+    .midline span {
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .imbalance {
+      display: grid;
+      gap: 6px;
+      border-top: 1px solid var(--line);
+      padding: 10px;
+    }
+
+    .imbalance-track {
+      display: grid;
+      grid-template-columns: var(--bid-width, 50%) 1fr;
+      height: 9px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #171c23;
+    }
+
+    .imbalance-track i:first-child { background: var(--bid); }
+    .imbalance-track i:last-child { background: var(--ask); }
+
+    .imbalance-label {
+      display: flex;
+      justify-content: space-between;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 11px;
+    }
+
+    .bottom-grid {
+      display: grid;
+      grid-template-columns: minmax(280px, 0.9fr) minmax(340px, 1.1fr);
+      gap: 8px;
+    }
+
+    .depth-wrap {
+      height: 268px;
+      background:
+        linear-gradient(rgba(255, 255, 255, 0.026) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.026) 1px, transparent 1px),
+        #070a0e;
+      background-size: 48px 38px;
+    }
+
+    .table-wrap {
+      max-height: 268px;
+      overflow: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+
+    th,
+    td {
+      height: 31px;
+      border-bottom: 1px solid var(--line-soft);
+      padding: 0 9px;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: #10151c;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 760;
+      text-transform: uppercase;
+    }
+
+    .buy { color: var(--bid); }
+    .sell { color: var(--ask); }
+    .warn { color: var(--amber); }
+    .cyan { color: var(--cyan); }
+    .violet { color: var(--violet); }
+
+    .list {
+      display: grid;
+      max-height: 445px;
+      overflow: auto;
+    }
+
+    .agent-row,
+    .event-row {
+      border-bottom: 1px solid var(--line-soft);
+      padding: 10px;
+    }
+
+    .agent-row:last-child,
+    .event-row:last-child {
+      border-bottom: 0;
+    }
+
+    .agent-title,
+    .event-top {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      min-width: 0;
+    }
+
+    .agent-title strong,
+    .event-top strong {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 12px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 20px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 0 7px;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 9px;
+      text-transform: uppercase;
+      white-space: nowrap;
+      max-width: 118px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .agent-kv {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 9px;
+    }
+
+    .agent-kv span {
+      display: block;
+      color: var(--muted);
+      font-size: 10px;
+      text-transform: uppercase;
+    }
+
+    .agent-kv b {
+      display: block;
+      margin-top: 4px;
+      font-family: var(--mono);
+      font-size: 12px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .bar-meter {
+      height: 4px;
+      margin-top: 9px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #171c23;
+    }
+
+    .bar-meter i {
+      display: block;
+      height: 100%;
+      width: var(--w, 0%);
+      background: linear-gradient(90deg, var(--cyan), var(--bid));
+    }
+
+    .event-row {
+      display: grid;
+      gap: 6px;
+      border-left: 3px solid var(--cyan);
+      background: rgba(255, 255, 255, 0.012);
+    }
+
+    .event-row.trade { border-left-color: var(--bid); }
+    .event-row.shock { border-left-color: var(--amber); }
+    .event-row.warn { border-left-color: var(--ask); }
+
+    .event-top {
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 11px;
+    }
+
+    .event-main {
+      color: #dfe7f3;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .severity {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+      margin-top: 2px;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 10px;
+    }
+
+    .severity i {
+      display: block;
+      height: 5px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #171c23;
+    }
+
+    .severity i::before {
+      content: "";
+      display: block;
+      width: var(--severity, 0%);
+      height: 100%;
+      background: var(--amber);
+    }
+
+    .empty {
+      min-height: 118px;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      color: var(--muted);
+      text-align: center;
+      font-size: 12px;
+    }
+
+    .toast {
+      position: fixed;
+      right: 14px;
+      bottom: 14px;
+      z-index: 40;
+      width: min(430px, calc(100vw - 28px));
+      transform: translateY(130%);
+      transition: transform 180ms ease;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(15, 19, 24, 0.98);
+      box-shadow: 0 22px 54px rgba(0, 0, 0, 0.46);
+      padding: 12px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .toast.show { transform: translateY(0); }
+
+    @media (max-width: 1450px) {
+      .terminal { grid-template-columns: 260px minmax(600px, 1fr) 370px; }
+      .ticker { grid-template-columns: repeat(4, minmax(120px, 1fr)); }
+    }
+
+    @media (max-width: 1180px) {
+      .topbar { grid-template-columns: 1fr; align-items: start; }
+      .market-status,
+      .controls { justify-content: flex-start; }
+      .terminal { grid-template-columns: 1fr; }
+      .rail { grid-template-columns: 1fr 1fr; }
+      .book-panel { min-height: 520px; }
+    }
+
+    @media (max-width: 760px) {
+      .topbar { padding: 10px; }
+      .ticker { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 0 8px; }
+      .terminal { padding: 8px; }
+      .rail,
+      .bottom-grid,
+      .chart-footer,
+      .chart-toolbar {
+        grid-template-columns: 1fr;
+      }
+      .chart-canvas-wrap { height: 390px; }
+      .controls { gap: 6px; }
+      input[type="text"] { width: 150px; }
+      .symbol-block { flex-wrap: wrap; gap: 7px; }
+      .agent-kv { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">AML</div>
+        <div>
+          <h1>AML-Sim Market Lab</h1>
+          <small id="runLabel">local_four_agent</small>
+        </div>
+      </div>
+
+      <div class="market-status">
+        <span class="chip"><i class="dot amber" id="statusDot"></i><span id="statusText">Loading</span></span>
+        <span class="chip" id="instrumentChip">AAPL</span>
+        <span class="chip" id="clockChip">--</span>
+        <span class="chip" id="modeChip">orderbook</span>
+      </div>
+
+      <div class="controls">
+        <select id="scenarioSelect" aria-label="Scenario">
+          <option value="scenarios/aml_one_hour_live.yaml">One Hour Live</option>
+          <option value="scenarios/aml_agent_infra_smoke.yaml">Agent Infra Demo</option>
+          <option value="scenarios/aml_orderbook_replay.yaml">Extended Orderbook</option>
+        </select>
+        <input id="runIdInput" type="text" value="local_four_agent" aria-label="Run ID">
+        <button class="primary" id="runSimBtn">Run Simulation</button>
+        <button id="loadRunBtn">Load</button>
+        <label class="file-label" for="actionsFile">Actions</label>
+        <input id="actionsFile" type="file" accept=".json,application/json">
+        <label class="file-label" for="logFile">Book</label>
+        <input id="logFile" type="file" accept=".log,.txt,text/plain">
+        <label class="file-label" for="summaryFile">Summary</label>
+        <input id="summaryFile" type="file" accept=".json,application/json">
+      </div>
+    </header>
+
+    <section class="ticker" id="ticker"></section>
+
+    <main class="terminal">
+      <aside class="rail">
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Market</h2>
+            <span class="meta" id="marketMeta">synthetic</span>
+          </div>
+          <div class="overview">
+            <div class="overview-symbol">
+              <div>
+                <strong id="symbol">AAPL</strong>
+                <span id="sessionRange">--</span>
+              </div>
+              <div class="overview-price" id="lastPrice">--</div>
+            </div>
+            <div class="metric-grid" id="marketMetrics"></div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Participants</h2>
+            <span class="meta" id="agentMeta">--</span>
+          </div>
+          <div class="list" id="agents"></div>
+        </section>
+      </aside>
+
+      <section class="main-stack">
+        <section class="panel chart-panel">
+          <div class="chart-toolbar">
+            <div class="symbol-block">
+              <strong id="chartSymbol">AAPL</strong>
+              <span class="last" id="chartLast">--</span>
+              <span class="delta" id="chartDelta">--</span>
+            </div>
+            <div class="segmented" aria-label="Chart layers">
+              <span class="active">MID</span>
+              <span>BOOK</span>
+              <span>FILLS</span>
+            </div>
+            <div class="timeframes" aria-label="Timeframe">
+              <span>1m</span>
+              <span class="active">30s</span>
+              <span>tick</span>
+            </div>
+          </div>
+          <div class="chart-canvas-wrap">
+            <canvas id="priceCanvas"></canvas>
+          </div>
+          <div class="chart-footer" id="chartStats"></div>
+        </section>
+
+        <section class="bottom-grid">
+          <section class="panel">
+            <div class="panel-head">
+              <h2>Market Depth</h2>
+              <span class="meta" id="depthMeta">--</span>
+            </div>
+            <div class="depth-wrap">
+              <canvas id="depthCanvas"></canvas>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
+              <h2>Trade Tape</h2>
+              <span class="meta" id="tapeMeta">--</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th>Side</th>
+                    <th>Buyer</th>
+                    <th>Seller</th>
+                    <th class="num">Qty</th>
+                    <th class="num">Price</th>
+                  </tr>
+                </thead>
+                <tbody id="tapeBody"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+      </section>
+
+      <aside class="rail">
+        <section class="panel book-panel">
+          <div class="book-top">
+            <div>
+              <strong>Order Book</strong>
+              <span id="bookMeta">--</span>
+            </div>
+            <span class="pill" id="spreadValue">Spread --</span>
+          </div>
+          <div class="book-columns">
+            <span>Price</span><span class="num">Size</span><span class="num">Q</span><span class="num">Total</span>
+          </div>
+          <div class="book-rows" id="asks"></div>
+          <div class="midline">
+            <span id="bestBid">Bid --</span>
+            <strong id="bookMid">--</strong>
+            <span class="num" id="bestAsk">Ask --</span>
+          </div>
+          <div class="book-rows" id="bids"></div>
+          <div class="imbalance">
+            <div class="imbalance-track" id="imbalanceTrack"><i></i><i></i></div>
+            <div class="imbalance-label">
+              <span id="bidShare">Bid 50%</span>
+              <span id="askShare">Ask 50%</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Shock Monitor</h2>
+            <span class="meta" id="shockMeta">--</span>
+          </div>
+          <div class="list" id="shockTimeline"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Activity</h2>
+            <span class="meta" id="activityMeta">--</span>
+          </div>
+          <div class="list" id="activityFeed"></div>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const state = {
+      runId: "local_four_agent",
+      actionsReport: null,
+      summary: null,
+      metadata: null,
+      configuredAgents: [],
+      agentReports: {},
+      orderLog: "",
+      shockLog: "",
+      job: null,
+      parsed: null,
+      runPollTimer: null,
+      artifactPollTimer: null,
+      liveSource: null,
+      liveFingerprint: "",
+      usingPolling: false
+    };
+
+    const el = (id) => document.getElementById(id);
+    const money = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2, minimumFractionDigits: 2 });
+    const integer = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
+    const compact = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
+
+    function showToast(message) {
+      const node = el("toast");
+      node.textContent = message;
+      node.classList.add("show");
+      clearTimeout(showToast.timer);
+      showToast.timer = setTimeout(() => node.classList.remove("show"), 4200);
+    }
+
+    async function fetchText(path) {
+      const response = await fetch(path, { cache: "no-store" });
+      if (!response.ok) throw new Error(`${response.status} ${path}`);
+      return response.text();
+    }
+
+    async function fetchJson(path) {
+      return JSON.parse(await fetchText(path));
+    }
+
+    function hasLoadedArtifacts() {
+      return Boolean(state.actionsReport || state.summary || state.orderLog || state.shockLog);
+    }
+
+    function resetRunState(runId) {
+      state.runId = runId.trim() || "local_four_agent";
+      el("runIdInput").value = state.runId;
+      el("runLabel").textContent = state.runId;
+      state.actionsReport = null;
+      state.summary = null;
+      state.metadata = null;
+      state.configuredAgents = [];
+      state.agentReports = {};
+      state.orderLog = "";
+      state.shockLog = "";
+      state.job = null;
+      state.liveFingerprint = "";
+      state.usingPolling = false;
+    }
+
+    function applyArtifactSnapshot(artifact) {
+      if (artifact.run_id) {
+        state.runId = artifact.run_id;
+        el("runIdInput").value = state.runId;
+        el("runLabel").textContent = state.runId;
+      }
+      if (artifact.actions_report) state.actionsReport = artifact.actions_report;
+      if (artifact.summary) state.summary = artifact.summary;
+      if (artifact.metadata) state.metadata = artifact.metadata;
+      if (Array.isArray(artifact.configured_agents)) state.configuredAgents = artifact.configured_agents;
+      if (artifact.agent_reports && typeof artifact.agent_reports === "object") state.agentReports = artifact.agent_reports;
+      if (typeof artifact.order_log === "string") state.orderLog = artifact.order_log;
+      if (typeof artifact.shock_log === "string") state.shockLog = artifact.shock_log;
+      if (artifact.job) state.job = artifact.job;
+      updateStatusFromJob();
+      render();
+    }
+
+    function isCurrentJob(job = state.job) {
+      return Boolean(job?.run_id && job.run_id === state.runId);
+    }
+
+    function updateStatusFromJob() {
+      const status = state.job?.status;
+      if (isCurrentJob() && (status === "running" || status === "starting")) {
+        setStatus(hasLoadedArtifacts() ? "Live" : "Starting", hasLoadedArtifacts() ? "green" : "amber");
+        return;
+      }
+      if (isCurrentJob() && status === "completed") {
+        setStatus("Complete", "green");
+        return;
+      }
+      if (isCurrentJob() && status === "failed") {
+        setStatus("Run failed", "red");
+        return;
+      }
+      if (hasLoadedArtifacts()) {
+        setStatus("Historical", "green");
+        return;
+      }
+      setStatus("Ready", "amber");
+    }
+
+    function artifactFingerprint(artifact) {
+      return [
+        artifact.run_id || "",
+        artifact.job?.status || "",
+        artifact.order_log?.length || 0,
+        artifact.shock_log?.length || 0,
+        artifact.actions_report?.action_count || 0,
+        artifact.summary?.generated_artifacts?.timestamp || ""
+      ].join("|");
+    }
+
+    function closeLiveStream() {
+      if (state.liveSource) {
+        state.liveSource.close();
+        state.liveSource = null;
+      }
+      clearTimeout(state.artifactPollTimer);
+    }
+
+    function startLiveStream(runId) {
+      closeLiveStream();
+      if (!window.EventSource) {
+        state.usingPolling = true;
+        pollArtifacts(runId);
+        return;
+      }
+
+      const source = new EventSource(`/api/live?run_id=${encodeURIComponent(runId)}`);
+      state.liveSource = source;
+      source.addEventListener("snapshot", (event) => {
+        const artifact = JSON.parse(event.data);
+        const fingerprint = artifactFingerprint(artifact);
+        if (fingerprint === state.liveFingerprint) {
+          if (artifact.job) {
+            state.job = artifact.job;
+            updateStatusFromJob();
+          }
+          return;
+        }
+        state.liveFingerprint = fingerprint;
+        applyArtifactSnapshot(artifact);
+      });
+      source.onerror = () => {
+        if (!hasLoadedArtifacts()) setStatus("Reconnecting", "amber");
+      };
+    }
+
+    async function pollArtifacts(runId) {
+      clearTimeout(state.artifactPollTimer);
+      try {
+        const artifact = await fetchJson(`/api/artifacts?run_id=${encodeURIComponent(runId)}`);
+        const fingerprint = artifactFingerprint(artifact);
+        if (fingerprint !== state.liveFingerprint) {
+          state.liveFingerprint = fingerprint;
+          applyArtifactSnapshot(artifact);
+        } else if (artifact.job) {
+          state.job = artifact.job;
+          updateStatusFromJob();
+        }
+      } catch (_error) {
+        if (!hasLoadedArtifacts()) setStatus("Reconnecting", "amber");
+      }
+
+      const status = state.job?.status;
+      if (isCurrentJob() && (status === "running" || status === "starting")) {
+        state.artifactPollTimer = setTimeout(() => pollArtifacts(runId), 1000);
+      } else if (!hasLoadedArtifacts()) {
+        state.artifactPollTimer = setTimeout(() => pollArtifacts(runId), 1400);
+      }
+    }
+
+    async function loadRun(runId, options = {}) {
+      resetRunState(runId);
+      if (!options.silent) setStatus("Loading", "amber");
+      clearTimeout(state.artifactPollTimer);
+
+      let usedArtifactApi = false;
+      let runExists = false;
+      try {
+        const artifact = await fetchJson(`/api/artifacts?run_id=${encodeURIComponent(state.runId)}`);
+        usedArtifactApi = true;
+        runExists = Boolean(artifact.exists);
+        applyArtifactSnapshot(artifact);
+      } catch (_error) {
+        await loadRunFromStaticFiles(state.runId);
+      }
+
+      if (usedArtifactApi) startLiveStream(state.runId);
+
+      if (hasLoadedArtifacts()) {
+        updateStatusFromJob();
+      } else if (usedArtifactApi && runExists) {
+        setStatus("Waiting reports", "amber");
+        if (!options.silent) {
+          showToast(`Run ${state.runId} exists, but reports are not ready yet.`);
+        }
+        state.artifactPollTimer = setTimeout(() => {
+          loadRun(state.runId, { silent: true }).catch(() => {});
+        }, 2200);
+      } else {
+        setStatus("Manual files", "red");
+        if (!options.silent) {
+          showToast("Run artifacts were not found from this page. Load Actions and Book files manually.");
+        }
+      }
+
+      render();
+    }
+
+    async function loadRunFromStaticFiles(runId) {
+      const base = `.aml_runs/${state.runId}`;
+      const [actions, summary] = await Promise.allSettled([
+        fetchJson(`${base}/reports/trader_actions.json`),
+        fetchJson(`${base}/reports/simulation_summary.json`)
+      ]);
+
+      if (actions.status === "fulfilled") state.actionsReport = actions.value;
+      if (summary.status === "fulfilled") state.summary = summary.value;
+
+      const instrument = state.summary?.simulation_info?.instruments?.[0] || "AAPL";
+      const log = await Promise.allSettled([
+        fetchText(`${base}/logs/order_book_${instrument}.log`),
+        fetchText(`${base}/logs/order_book_AAPL.log`)
+      ]);
+      const loadedLog = log.find((item) => item.status === "fulfilled");
+      if (loadedLog) state.orderLog = loadedLog.value;
+    }
+
+    async function startSimulation() {
+      const runId = (el("runIdInput").value || "local_four_agent").trim();
+      const scenario = el("scenarioSelect").value;
+      clearTimeout(state.runPollTimer);
+      setStatus("Starting run", "amber");
+
+      let response;
+      try {
+        response = await fetch("/api/run", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ scenario, run_id: runId, reports: true })
+        });
+      } catch (error) {
+        setStatus("Viewer only", "red");
+        showToast("Run button needs dashboard_server.py, not plain http.server.");
+        return;
+      }
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (String(payload.error || "").includes("already in progress")) {
+          setStatus("Running", "amber");
+          showToast(payload.error);
+          pollRunStatus();
+          return;
+        }
+        setStatus("Run error", "red");
+        showToast(payload.error || "Could not start simulation.");
+        return;
+      }
+
+      el("runIdInput").value = payload.run_id || runId;
+      el("runLabel").textContent = payload.run_id || runId;
+      resetRunState(payload.run_id || runId);
+      history.replaceState(null, "", `?run=${encodeURIComponent(state.runId)}`);
+      setStatus("Running", "amber");
+      render();
+      showToast(`Started simulation ${payload.run_id || runId}.`);
+      startLiveStream(payload.run_id || runId);
+      pollRunStatus();
+    }
+
+    async function pollRunStatus() {
+      clearTimeout(state.runPollTimer);
+      try {
+        const response = await fetch("/api/status", { cache: "no-store" });
+        if (!response.ok) throw new Error("status unavailable");
+        const payload = await response.json();
+
+        if (payload.run_id && payload.run_id !== state.runId) {
+          state.runPollTimer = setTimeout(pollRunStatus, 1800);
+          return;
+        }
+
+        if (payload.status === "running" || payload.status === "starting") {
+          state.job = payload;
+          updateStatusFromJob();
+          state.runPollTimer = setTimeout(pollRunStatus, 1800);
+          return;
+        }
+
+        if (payload.status === "completed") {
+          state.job = payload;
+          updateStatusFromJob();
+          showToast(`Simulation ${payload.run_id} completed. Final reports loaded.`);
+          setTimeout(() => loadRun(payload.run_id, { silent: true }).catch(() => {}), 700);
+          return;
+        }
+
+        if (payload.status === "failed") {
+          setStatus("Run failed", "red");
+          const tail = Array.isArray(payload.log_tail) ? payload.log_tail.at(-1) : "";
+          showToast(payload.error || tail || "Simulation failed.");
+          return;
+        }
+
+        if (payload.status === "idle" && !hasLoadedArtifacts()) {
+          setStatus("Ready", "amber");
+        }
+      } catch (_error) {
+        if (!hasLoadedArtifacts()) setStatus("Viewer only", "red");
+      }
+    }
+
+    function setStatus(text, color) {
+      el("statusText").textContent = text;
+      el("statusDot").className = `dot ${color === "red" ? "red" : color === "amber" ? "amber" : ""}`;
+    }
+
+    function readFileAsText(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ""));
+        reader.onerror = reject;
+        reader.readAsText(file);
+      });
+    }
+
+    function parseOrderBookLog(text) {
+      const orders = new Map();
+      const trades = [];
+      const warnings = [];
+      const snapshots = [];
+      const orderEvents = [];
+      const lines = String(text || "").split(/\r?\n/);
+      let lastSnapshotKey = "";
+
+      const snapshot = (wallTime, simTime, reason) => {
+        const live = sanitizeLiveOrders(Array.from(orders.values()));
+        const bids = live.filter((order) => order.side === "BUY").sort((a, b) => b.price - a.price);
+        const asks = live.filter((order) => order.side === "SELL").sort((a, b) => a.price - b.price);
+        const bid = bids[0]?.price || null;
+        const ask = asks[0]?.price || null;
+        const mid = bid && ask ? (bid + ask) / 2 : bid || ask || null;
+        const bidSize = bids.reduce((sum, order) => sum + order.remaining, 0);
+        const askSize = asks.reduce((sum, order) => sum + order.remaining, 0);
+        if (!mid) return;
+        const key = `${simTime || wallTime}-${mid}-${bidSize}-${askSize}-${reason}`;
+        if (key === lastSnapshotKey) return;
+        lastSnapshotKey = key;
+        snapshots.push({
+          wallTime,
+          simTime: simTime || wallTime,
+          bid,
+          ask,
+          mid,
+          spread: bid && ask ? ask - bid : 0,
+          bidSize,
+          askSize,
+          orderCount: live.length,
+          reason
+        });
+      };
+
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const timeMatch = line.match(/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})/);
+        const wallTime = timeMatch ? timeMatch[1] : "";
+
+        const add = line.match(/Adding (?:LIMIT )?(BUY|SELL) order: Order\(id=([^,]+), agent=([^,]+), side=(BUY|SELL), type=(LIMIT|MARKET), qty=(\d+)\/(\d+), price=([^,]+), status=([^,]+), time=([^)]+)\)/);
+        if (add && add[5] === "LIMIT") {
+          const id = add[2];
+          const order = {
+            id,
+            agent: add[3],
+            side: add[4],
+            type: add[5],
+            remaining: Number(add[6]),
+            original: Number(add[7]),
+            price: Number(add[8]),
+            status: add[9],
+            time: add[10],
+            wallTime
+          };
+          orders.set(id, order);
+          orderEvents.push({ type: "add", wallTime, side: order.side, qty: order.remaining, price: order.price, agent: order.agent });
+          snapshot(wallTime, order.time, "add");
+          continue;
+        }
+
+        const removedFromBook = line.match(/Order ([^) ]+) removed from (bids|asks) at price ([0-9.]+)/);
+        if (removedFromBook) {
+          const id = removedFromBook[1];
+          const order = orders.get(id);
+          orders.delete(id);
+          snapshot(wallTime, order?.time || wallTime, "removed");
+          continue;
+        }
+
+        const cancel = line.match(/Order canceled: Order\(id=([^,]+), agent=([^,]+), side=(BUY|SELL), type=(LIMIT|MARKET), qty=(\d+)\/(\d+), price=([^,]+), status=([^,]+), time=([^)]+)\)/);
+        if (cancel) {
+          const id = cancel[1];
+          const removed = orders.get(id);
+          orders.delete(id);
+          orderEvents.push({
+            type: "cancel",
+            wallTime,
+            side: cancel[3],
+            qty: Number(cancel[5]),
+            price: Number(cancel[7]),
+            agent: cancel[2]
+          });
+          snapshot(wallTime, removed?.time || cancel[9], "cancel");
+          continue;
+        }
+
+        const filled = line.match(/(?:Order|Bid order|Ask order) ([^) ]+) fully filled(?: and removed)?/);
+        if (filled) {
+          const order = orders.get(filled[1]);
+          orders.delete(filled[1]);
+          snapshot(wallTime, order?.time || wallTime, "filled");
+          continue;
+        }
+
+        const trade = line.match(/Trade executed: ([^ ]+) bought (\d+) shares from ([^ ]+) at \$([0-9.]+)/);
+        if (trade) {
+          const buyer = trade[1];
+          const qty = Number(trade[2]);
+          const seller = trade[3];
+          const price = Number(trade[4]);
+          trades.push({ wallTime, simTime: wallTime, buyer, seller, qty, price, side: buyer.includes("market_maker") ? "SELL" : "BUY" });
+          consumeBook(orders, buyer, seller, qty, price);
+          snapshot(wallTime, wallTime, "trade");
+          continue;
+        }
+
+        const warning = line.match(/WARNING\s+\|\s+OrderBook-[^|]+\|\s+(.+)/);
+        if (warning) warnings.push({ wallTime, message: warning[1] });
+      }
+
+      return { orders: sanitizeLiveOrders(Array.from(orders.values())), trades, warnings, snapshots, orderEvents };
+    }
+
+    function consumeBook(orders, buyer, seller, qty, price) {
+      consumeBookSide(orders, "BUY", buyer, qty, price);
+      consumeBookSide(orders, "SELL", seller, qty, price);
+    }
+
+    function consumeBookSide(orders, side, agent, qty, price) {
+      const candidates = Array.from(orders.values())
+        .filter((order) => {
+          if (order.side !== side || order.agent !== agent) return false;
+          if (side === "BUY") return order.price >= price - 0.0001;
+          return order.price <= price + 0.0001;
+        })
+        .sort((a, b) => {
+          if (side === "BUY" && a.price !== b.price) return b.price - a.price;
+          if (side === "SELL" && a.price !== b.price) return a.price - b.price;
+          return String(a.time).localeCompare(String(b.time));
+        });
+      let remaining = qty;
+      for (const order of candidates) {
+        if (remaining <= 0) break;
+        const take = Math.min(order.remaining, remaining);
+        order.remaining -= take;
+        remaining -= take;
+        if (order.remaining <= 0) orders.delete(order.id);
+      }
+    }
+
+    function sanitizeLiveOrders(orders) {
+      const live = orders.filter((order) => order.remaining > 0 && Number.isFinite(order.price));
+      const blocked = new Set();
+      while (true) {
+        const bids = live
+          .filter((order) => !blocked.has(order.id) && order.side === "BUY")
+          .sort((a, b) => b.price - a.price);
+        const asks = live
+          .filter((order) => !blocked.has(order.id) && order.side === "SELL")
+          .sort((a, b) => a.price - b.price);
+        const bid = bids[0];
+        const ask = asks[0];
+        if (!bid || !ask || bid.price < ask.price) break;
+
+        const bidTime = parseTime(bid.wallTime || bid.time) || 0;
+        const askTime = parseTime(ask.wallTime || ask.time) || 0;
+        blocked.add(askTime <= bidTime ? ask.id : bid.id);
+      }
+      return live.filter((order) => !blocked.has(order.id));
+    }
+
+    function parseActions(report, configuredAgents, shockLog, agentReports) {
+      const actions = Array.isArray(report?.actions) ? report.actions : [];
+      const agents = {};
+      const shocks = [];
+      const orders = [];
+      const fills = [];
+
+      for (const configured of configuredAgents || []) {
+        const id = configured.id || "unknown";
+        agents[id] ||= {
+          id,
+          role: roleForAgent(`${id} ${configured.type || ""}`),
+          orders: 0,
+          fills: 0,
+          shocks: 0,
+          volume: 0,
+          lastStrategy: { strategy_type: configured.type || "configured_agent" },
+          lastPortfolio: null
+        };
+      }
+
+      for (const action of actions) {
+        const id = action.agent_id || "unknown";
+        agents[id] ||= {
+          id,
+          role: roleForAgent(id, action.strategy_state),
+          orders: 0,
+          fills: 0,
+          shocks: 0,
+          volume: 0,
+          lastStrategy: action.strategy_state || {},
+          lastPortfolio: action.portfolio_after || null
+        };
+
+        if (action.strategy_state) agents[id].lastStrategy = action.strategy_state;
+        if (action.portfolio_after) agents[id].lastPortfolio = action.portfolio_after;
+
+        if (action.event_type === "order_submitted") {
+          agents[id].orders += 1;
+          orders.push(action);
+        }
+        if (action.event_type === "trade_executed") {
+          agents[id].fills += 1;
+          const qty = Number(action.quantity || 0);
+          const price = Number(action.price || 0);
+          agents[id].volume += qty * price;
+          fills.push(action);
+        }
+        if (action.event_type === "event_observed") {
+          agents[id].shocks += 1;
+          shocks.push(action);
+        }
+      }
+
+      const liveShockEvents = parseShockLog(shockLog);
+      const shockEvents = shocks.length ? shocks : liveShockEvents;
+      if (!shocks.length) {
+        for (const event of liveShockEvents) {
+          const id = event.agent_id || "shock_agent";
+          agents[id] ||= {
+            id,
+            role: roleForAgent(id),
+            orders: 0,
+            fills: 0,
+            shocks: 0,
+            volume: 0,
+            lastStrategy: { strategy_type: "scheduled_shock_injection" },
+            lastPortfolio: null
+          };
+          agents[id].shocks += 1;
+        }
+      }
+
+      if (report?.agents) {
+        for (const [id, metrics] of Object.entries(report.agents)) {
+          agents[id] ||= { id, role: roleForAgent(id), orders: 0, fills: 0, shocks: 0, volume: 0, lastStrategy: {}, lastPortfolio: null };
+          agents[id].orders = Math.max(agents[id].orders, Number(metrics.submitted_orders || 0));
+          agents[id].fills = Math.max(agents[id].fills, Number(metrics.executed_trades || 0));
+        }
+      }
+
+      if (shockEvents.length && !agents.shock_agent) {
+        agents.shock_agent = {
+          id: "shock_agent",
+          role: "Shock Agent",
+          orders: 0,
+          fills: 0,
+          shocks: shockEvents.length,
+          volume: 0,
+          lastStrategy: { strategy_type: "scheduled_shock_injection" },
+          lastPortfolio: null
+        };
+      }
+
+      for (const [id, reportData] of Object.entries(agentReports || {})) {
+        agents[id] ||= {
+          id,
+          role: roleForAgent(id),
+          orders: 0,
+          fills: 0,
+          shocks: 0,
+          volume: 0,
+          lastStrategy: {},
+          lastPortfolio: null
+        };
+        const metrics = reportData.metrics || {};
+        agents[id].metrics = metrics;
+        agents[id].pendingOrders = Number(reportData.pending_order_count || 0);
+        agents[id].executedOrders = Number(reportData.executed_order_count || 0);
+        if (reportData.last_portfolio_value != null) {
+          agents[id].lastPortfolio ||= {};
+          agents[id].lastPortfolio.portfolio_value = Number(reportData.last_portfolio_value);
+        }
+        agents[id].realizedPnl = realizedPnlFromMetrics(metrics);
+      }
+
+      return { actions, agents: Object.values(agents), shocks: shockEvents, orders, fills };
+    }
+
+    function realizedPnlFromMetrics(metrics) {
+      const realized = metrics?.["Realized P&L"];
+      if (!realized || typeof realized !== "object") return null;
+      return Object.values(realized).reduce((sum, value) => sum + Number(value || 0), 0);
+    }
+
+    function parseShockLog(text) {
+      const events = [];
+      const lines = String(text || "").split(/\r?\n/);
+      let currentTick = "";
+
+      for (const line of lines) {
+        const wallTime = line.match(/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})/)?.[1] || "";
+        const tick = line.match(/Received TIME_TICK message: ([^ ]+)/);
+        if (tick) currentTick = tick[1];
+
+        const emitted = line.match(/AMLShockAgent emitted ([^ ]+) to (\d+) targets: type=([^,]+), severity=([^,]+), direction=([^ ]+)/);
+        if (!emitted) continue;
+        events.push({
+          event_type: "shock_emitted",
+          shock_id: emitted[1],
+          target_count: Number(emitted[2]),
+          shock_type: emitted[3],
+          severity: Number(emitted[4]),
+          direction: Number(emitted[5]),
+          affected_instruments: currentInstruments(),
+          agent_id: "shock_agent",
+          timestamp: currentTick || wallTime
+        });
+      }
+
+      return events;
+    }
+
+    function roleForAgent(id, strategy = {}) {
+      const text = `${id} ${strategy?.strategy_type || ""} ${strategy?.alpha_strategy || ""}`.toLowerCase();
+      if (text.includes("market_maker")) return "Market Maker";
+      if (text.includes("retail")) return "Retail";
+      if (text.includes("institutional")) return "Institutional";
+      if (text.includes("shock")) return "Shock Agent";
+      return "Agent";
+    }
+
+    function aggregateBook(orders) {
+      const bids = aggregateSide(orders.filter((order) => order.side === "BUY"), true);
+      const asks = aggregateSide(orders.filter((order) => order.side === "SELL"), false);
+      return { bids, asks };
+    }
+
+    function aggregateSide(orders, desc) {
+      const map = new Map();
+      for (const order of orders) {
+        if (!Number.isFinite(order.price) || order.remaining <= 0) continue;
+        const key = order.price.toFixed(2);
+        map.set(key, (map.get(key) || 0) + order.remaining);
+      }
+      const queueCounts = new Map();
+      for (const order of orders) {
+        if (!Number.isFinite(order.price) || order.remaining <= 0) continue;
+        const key = order.price.toFixed(2);
+        queueCounts.set(key, (queueCounts.get(key) || 0) + 1);
+      }
+      const rows = Array.from(map.entries()).map(([price, size]) => ({
+        price: Number(price),
+        size,
+        orders: queueCounts.get(price) || 0
+      }));
+      rows.sort((a, b) => desc ? b.price - a.price : a.price - b.price);
+      let total = 0;
+      return rows.slice(0, 18).map((row) => ({ ...row, total: total += row.size }));
+    }
+
+    function deriveParsedState() {
+      const log = parseOrderBookLog(state.orderLog);
+      const actions = parseActions(state.actionsReport, state.configuredAgents, state.shockLog, state.agentReports);
+      const book = aggregateBook(log.orders);
+      const actionTrades = actions.fills.map((fill) => ({
+        wallTime: fill.timestamp || "",
+        simTime: fill.timestamp || "",
+        buyer: fill.raw_trade?.role === "buyer" ? fill.agent_id : fill.raw_trade?.buyer || fill.agent_id,
+        seller: fill.raw_trade?.seller || "",
+        qty: Number(fill.quantity || 0),
+        price: Number(fill.price || 0),
+        side: fill.side || "BUY"
+      })).filter((trade) => Number.isFinite(trade.price) && trade.price > 0);
+      const trades = log.trades.length ? log.trades : actionTrades;
+      mergeLiveAgentActivity(actions, log, trades);
+      return { log, actions, book, trades };
+    }
+
+    function mergeLiveAgentActivity(actions, log, trades) {
+      const byId = new Map(actions.agents.map((agent) => [agent.id, agent]));
+      const ensure = (id) => {
+        const cleanId = id || "unknown";
+        if (!byId.has(cleanId)) {
+          byId.set(cleanId, {
+            id: cleanId,
+            role: roleForAgent(cleanId),
+            orders: 0,
+            fills: 0,
+            shocks: 0,
+            volume: 0,
+            lastStrategy: {},
+            lastPortfolio: null
+          });
+        }
+        return byId.get(cleanId);
+      };
+
+      const orderCounts = {};
+      for (const event of log.orderEvents) {
+        if (event.type !== "add") continue;
+        orderCounts[event.agent] = (orderCounts[event.agent] || 0) + 1;
+      }
+      for (const [id, count] of Object.entries(orderCounts)) {
+        const agent = ensure(id);
+        agent.orders = Math.max(agent.orders, count);
+      }
+
+      const fillCounts = {};
+      const volume = {};
+      for (const trade of trades) {
+        for (const id of [trade.buyer, trade.seller]) {
+          if (!id) continue;
+          fillCounts[id] = (fillCounts[id] || 0) + 1;
+          volume[id] = (volume[id] || 0) + trade.qty * trade.price;
+        }
+      }
+      for (const [id, count] of Object.entries(fillCounts)) {
+        const agent = ensure(id);
+        agent.fills = Math.max(agent.fills, count);
+        agent.volume = Math.max(agent.volume || 0, volume[id] || 0);
+      }
+
+      actions.agents = Array.from(byId.values());
+    }
+
+    function render() {
+      state.parsed = deriveParsedState();
+      const parsed = state.parsed;
+      const summary = state.summary;
+      const instruments = currentInstruments();
+      const instrument = instruments[0] || "AAPL";
+
+      el("instrumentChip").textContent = instrument;
+      el("symbol").textContent = instrument;
+      el("chartSymbol").textContent = instrument;
+      el("modeChip").textContent = summary?.simulation_info?.exchange_mode || "orderbook";
+      el("marketMeta").textContent = scenarioLabel();
+
+      const start = summary?.simulation_info?.start_time;
+      const end = summary?.simulation_info?.end_time;
+      const latestTick = parsed.log.snapshots.at(-1)?.simTime || parsed.trades.at(-1)?.simTime || "";
+      el("clockChip").textContent = start && end ? `${start.slice(11, 16)}-${end.slice(11, 16)}` : shortTime(latestTick);
+      el("sessionRange").textContent = start && end ? `${start.slice(0, 10)} ${start.slice(11, 16)}-${end.slice(11, 16)}` : latestTick ? `live tick ${shortTime(latestTick)}` : "synthetic session";
+
+      renderMarket(parsed, summary);
+      renderBook(parsed.book);
+      renderTape(parsed.trades);
+      renderAgents(parsed.actions.agents);
+      renderTimelines(parsed);
+      renderCharts(parsed);
+      window.addEventListener("resize", rerenderChartsOnce, { once: true });
+    }
+
+    function scenarioLabel() {
+      const name = state.metadata?.scenario?.name || state.summary?.scenario?.name || "";
+      if (!name) return "synthetic venue";
+      return name
+        .replace(/^aml_/, "")
+        .replaceAll("_", " ");
+    }
+
+    function currentInstruments() {
+      const summaryInstruments = state.summary?.simulation_info?.instruments;
+      if (Array.isArray(summaryInstruments) && summaryInstruments.length) return summaryInstruments;
+      return ["AAPL"];
+    }
+
+    function computeMetrics(parsed, summary) {
+      const trades = parsed.trades;
+      const snapshots = parsed.log.snapshots;
+      const mids = snapshots.map((item) => item.mid).filter(Number.isFinite);
+      const tradePrices = trades.map((trade) => trade.price).filter(Number.isFinite);
+      const series = mids.length ? mids : tradePrices;
+      const last = tradePrices.at(-1) || series.at(-1) || bestMid(parsed.book) || 0;
+      const first = series[0] || last;
+      const high = Math.max(...series, last || 0);
+      const low = Math.min(...series, last || 0);
+      const change = last && first ? last - first : 0;
+      const changePct = first ? change / first : 0;
+      const bid = parsed.book.bids[0]?.price || 0;
+      const ask = parsed.book.asks[0]?.price || 0;
+      const spread = bid && ask ? ask - bid : 0;
+      const spreadBps = last && spread ? spread / last * 10000 : 0;
+      const bidDepth = parsed.book.bids.reduce((sum, row) => sum + row.size, 0);
+      const askDepth = parsed.book.asks.reduce((sum, row) => sum + row.size, 0);
+      const totalDepth = bidDepth + askDepth;
+      const imbalance = totalDepth ? (bidDepth - askDepth) / totalDepth : 0;
+      const totalVolume = trades.reduce((sum, trade) => sum + trade.qty, 0);
+      const notional = trades.reduce((sum, trade) => sum + trade.qty * trade.price, 0);
+      const agents = Math.max(
+        parsed.actions.agents.length,
+        Number(summary?.simulation_info?.total_agents || 0)
+      );
+      return { last, first, high, low, change, changePct, bid, ask, spread, spreadBps, bidDepth, askDepth, imbalance, totalVolume, notional, agents };
+    }
+
+    function renderMarket(parsed, summary) {
+      const m = computeMetrics(parsed, summary);
+      const shocks = parsed.actions.shocks.length;
+      const orderAdds = parsed.log.orderEvents.filter((event) => event.type === "add").length || parsed.actions.orders.length;
+      const activeOrders = parsed.log.orders.length;
+      const deltaClass = m.change < 0 ? "sell" : m.change > 0 ? "buy" : "";
+      const deltaText = m.last && m.first ? `${m.change >= 0 ? "+" : ""}${money.format(m.change)} (${(m.changePct * 100).toFixed(2)}%)` : "--";
+
+      el("lastPrice").textContent = m.last ? `$${money.format(m.last)}` : "--";
+      el("chartLast").textContent = m.last ? `$${money.format(m.last)}` : "--";
+      el("chartLast").className = `last ${m.change < 0 ? "sell" : "buy"}`;
+      el("chartDelta").textContent = deltaText;
+      el("chartDelta").className = `delta ${deltaClass}`;
+
+      const ticker = [
+        ["Mark", m.last ? `$${money.format(m.last)}` : "--"],
+        ["Change", deltaText],
+        ["High / Low", m.high && m.low ? `${money.format(m.high)} / ${money.format(m.low)}` : "--"],
+        ["Spread", m.spread ? `${money.format(m.spread)} (${m.spreadBps.toFixed(1)} bp)` : "--"],
+        ["Trades", integer.format(parsed.trades.length)],
+        ["Volume", compact.format(m.totalVolume)],
+        ["Notional", `$${compact.format(m.notional)}`],
+        ["Shocks", integer.format(shocks)]
+      ];
+      el("ticker").innerHTML = ticker.map(([label, value]) => `
+        <div class="ticker-cell">
+          <span>${escapeHtml(label)}</span>
+          <strong class="${label === "Change" ? deltaClass : ""}">${escapeHtml(value)}</strong>
+        </div>
+      `).join("");
+
+      const mini = [
+        ["Best Bid", m.bid ? `$${money.format(m.bid)}` : "--"],
+        ["Best Ask", m.ask ? `$${money.format(m.ask)}` : "--"],
+        ["Bid Depth", integer.format(m.bidDepth)],
+        ["Ask Depth", integer.format(m.askDepth)],
+        ["Active", integer.format(activeOrders)],
+        ["Agents", integer.format(m.agents)]
+      ];
+      el("marketMetrics").innerHTML = mini.map(([label, value]) => `
+        <div class="mini-metric">
+          <span>${escapeHtml(label)}</span>
+          <strong>${escapeHtml(value)}</strong>
+        </div>
+      `).join("");
+
+      el("chartStats").innerHTML = [
+        ["Order Flow", `${integer.format(orderAdds)} adds / ${integer.format(parsed.log.orderEvents.length)} events`],
+        ["Imbalance", `${(m.imbalance * 100).toFixed(1)}%`],
+        ["Book Updates", integer.format(parsed.log.snapshots.length)],
+        ["Shock Obs.", integer.format(shocks)]
+      ].map(([label, value]) => `
+        <div class="chart-stat">
+          <span>${escapeHtml(label)}</span>
+          <strong>${escapeHtml(value)}</strong>
+        </div>
+      `).join("");
+    }
+
+    function renderBook(book) {
+      const bid = book.bids[0]?.price || 0;
+      const ask = book.asks[0]?.price || 0;
+      const mid = bestMid(book);
+      const spread = bid && ask ? ask - bid : 0;
+      const bidDepth = book.bids.reduce((sum, row) => sum + row.size, 0);
+      const askDepth = book.asks.reduce((sum, row) => sum + row.size, 0);
+      const totalDepth = Math.max(bidDepth + askDepth, 1);
+      const bidPct = Math.round((bidDepth / totalDepth) * 100);
+      const askPct = 100 - bidPct;
+      const maxTotal = Math.max(...book.bids.map((row) => row.total), ...book.asks.map((row) => row.total), 1);
+
+      el("asks").innerHTML = bookRows(book.asks.slice().reverse(), "ask", maxTotal);
+      el("bids").innerHTML = bookRows(book.bids, "bid", maxTotal);
+      el("bookMid").textContent = mid ? money.format(mid) : "--";
+      el("bestBid").textContent = bid ? `Bid ${money.format(bid)}` : "Bid --";
+      el("bestAsk").textContent = ask ? `Ask ${money.format(ask)}` : "Ask --";
+      el("spreadValue").textContent = spread ? `Spread ${money.format(spread)}` : "Spread --";
+      el("bookMeta").textContent = `${book.bids.length} bids / ${book.asks.length} asks`;
+      el("depthMeta").textContent = `${integer.format(bidDepth)} bid / ${integer.format(askDepth)} ask`;
+      el("imbalanceTrack").style.setProperty("--bid-width", `${bidPct}%`);
+      el("bidShare").textContent = `Bid ${bidPct}%`;
+      el("askShare").textContent = `Ask ${askPct}%`;
+    }
+
+    function bookRows(rows, side, maxTotal) {
+      const rendered = rows.map((row) => bookRow(row, side, maxTotal));
+      const blanks = Array.from({ length: Math.max(0, 12 - rendered.length) }, () => emptyBookRow(side));
+      return [...blanks.slice(0, side === "ask" ? blanks.length : 0), ...rendered, ...blanks.slice(side === "bid" ? 0 : blanks.length)].join("");
+    }
+
+    function bookRow(row, side, maxTotal) {
+      const bar = Math.max(5, (row.total / maxTotal) * 100);
+      return `
+        <div class="book-row ${side}" style="--bar:${bar}%">
+          <span class="price ${side}-price">${money.format(row.price)}</span>
+          <span class="num">${integer.format(row.size)}</span>
+          <span class="num">${integer.format(row.orders || 0)}</span>
+          <span class="num">${integer.format(row.total)}</span>
+        </div>
+      `;
+    }
+
+    function emptyBookRow(side) {
+      return `
+        <div class="book-row ${side}" style="--bar:0%">
+          <span class="price ${side}-price">--</span>
+          <span class="num">--</span>
+          <span class="num">--</span>
+          <span class="num">--</span>
+        </div>
+      `;
+    }
+
+    function renderTape(trades) {
+      const rows = trades.slice(-28).reverse();
+      el("tapeMeta").textContent = `${integer.format(trades.length)} prints`;
+      el("tapeBody").innerHTML = rows.map((trade) => `
+        <tr>
+          <td>${escapeHtml(shortTime(trade.simTime || trade.wallTime))}</td>
+          <td class="${trade.side === "SELL" ? "sell" : "buy"}">${escapeHtml(trade.side || "BUY")}</td>
+          <td>${escapeHtml(compactAgent(trade.buyer))}</td>
+          <td>${escapeHtml(compactAgent(trade.seller))}</td>
+          <td class="num">${integer.format(trade.qty)}</td>
+          <td class="num ${trade.side === "SELL" ? "sell" : "buy"}">${money.format(trade.price)}</td>
+        </tr>
+      `).join("") || `<tr><td colspan="6" class="empty">No trades loaded</td></tr>`;
+    }
+
+    function renderAgents(agents) {
+      el("agentMeta").textContent = `${integer.format(agents.length)} participants`;
+      const maxOrders = Math.max(...agents.map((agent) => agent.orders), 1);
+      const ordered = agents.slice().sort((a, b) => b.orders - a.orders || a.id.localeCompare(b.id));
+      el("agents").innerHTML = ordered.map((agent) => {
+        const strategy = agent.lastStrategy || {};
+        const position = firstPosition(agent.lastPortfolio)?.net ?? 0;
+        const value = agent.lastPortfolio?.portfolio_value ?? agent.metrics?.["Last Portfolio Value"] ?? 0;
+        const realizedPnl = agent.realizedPnl ?? firstPosition(agent.lastPortfolio)?.realized_pnl ?? 0;
+        const mode = strategy.alpha_strategy || strategy.strategy_type || agent.role;
+        const activity = Math.max(5, (agent.orders / maxOrders) * 100);
+        const ordersLabel = agent.pendingOrders
+          ? `${integer.format(agent.orders)} / ${integer.format(agent.pendingOrders)}`
+          : integer.format(agent.orders);
+        return `
+          <article class="agent-row">
+            <div class="agent-title">
+              <strong title="${escapeHtml(agent.id)}">${escapeHtml(compactAgent(agent.id))}</strong>
+              <span class="tag" title="${escapeHtml(agent.role)}">${escapeHtml(compactRole(agent.role))}</span>
+            </div>
+            <div class="agent-kv">
+              <div><span>Strategy</span><b>${escapeHtml(String(mode))}</b></div>
+              <div><span>Orders/Pend</span><b>${escapeHtml(ordersLabel)}</b></div>
+              <div><span>Fills</span><b>${integer.format(agent.fills)}</b></div>
+              <div><span>Position</span><b>${integer.format(position)}</b></div>
+              <div><span>Realized PnL</span><b class="${realizedPnl < 0 ? "sell" : realizedPnl > 0 ? "buy" : ""}">${formatSignedMoney(realizedPnl)}</b></div>
+              <div><span>Value</span><b>${value ? `$${compact.format(value)}` : "--"}</b></div>
+            </div>
+            <div class="bar-meter" title="Relative order activity"><i style="--w:${activity}%"></i></div>
+          </article>
+        `;
+      }).join("") || `<div class="empty">No agent actions loaded</div>`;
+    }
+
+    function renderTimelines(parsed) {
+      const shockEvents = parsed.actions.shocks;
+      el("shockMeta").textContent = `${integer.format(shockEvents.length)} observations`;
+      el("shockTimeline").innerHTML = shockEvents.map((event) => {
+        const severity = Math.max(0, Math.min(1, Number(event.severity ?? 0)));
+        return `
+          <div class="event-row shock">
+            <div class="event-top">
+              <strong>${escapeHtml(shortTime(event.timestamp))}</strong>
+              <span>${escapeHtml(compactAgent(event.agent_id || ""))}</span>
+            </div>
+            <div class="event-main">${escapeHtml(event.shock_type || "shock")} on ${escapeHtml((event.affected_instruments || []).join(", ") || "market")}</div>
+            <div class="severity" style="--severity:${severity * 100}%"><i></i><span>${Math.round(severity * 100)}%</span></div>
+          </div>
+        `;
+      }).join("") || `<div class="empty">No shock events loaded</div>`;
+
+      const activity = [
+        ...parsed.trades.map((trade) => ({
+          type: "trade",
+          time: trade.simTime || trade.wallTime,
+          agent: `${compactAgent(trade.buyer)} / ${compactAgent(trade.seller)}`,
+          text: `${trade.side || "BUY"} ${integer.format(trade.qty)} @ ${money.format(trade.price)}`
+        })),
+        ...parsed.log.warnings.map((warning) => ({
+          type: "warn",
+          time: warning.wallTime,
+          agent: "order_book",
+          text: warning.message
+        })),
+        ...shockEvents.map((event) => ({
+          type: "shock",
+          time: event.timestamp,
+          agent: compactAgent(event.agent_id),
+          text: `${event.shock_type || "shock"} observed`
+        }))
+      ].sort((a, b) => String(a.time).localeCompare(String(b.time))).slice(-34).reverse();
+
+      el("activityMeta").textContent = `${integer.format(activity.length)} latest`;
+      el("activityFeed").innerHTML = activity.map((item) => `
+        <div class="event-row ${item.type}">
+          <div class="event-top">
+            <strong>${escapeHtml(shortTime(item.time))}</strong>
+            <span>${escapeHtml(item.agent || "")}</span>
+          </div>
+          <div class="event-main">${escapeHtml(item.text)}</div>
+        </div>
+      `).join("") || `<div class="empty">No activity loaded</div>`;
+    }
+
+    function renderCharts(parsed) {
+      drawPriceChart(el("priceCanvas"), parsed.log.snapshots, parsed.trades, parsed.actions.shocks);
+      drawDepthChart(el("depthCanvas"), parsed.book);
+    }
+
+    function rerenderChartsOnce() {
+      if (state.parsed) renderCharts(state.parsed);
+    }
+
+    function drawPriceChart(canvas, snapshots, trades, shocks) {
+      const ctx = prepCanvas(canvas);
+      const rect = canvas.getBoundingClientRect();
+      const width = rect.width;
+      const height = rect.height;
+      ctx.clearRect(0, 0, width, height);
+
+      const plot = { left: 54, right: width - 64, top: 24, bottom: height - 76 };
+      drawChartGrid(ctx, width, height, plot);
+
+      const points = snapshots.length
+        ? snapshots.map((snap, i) => ({ ...snap, index: i, price: snap.mid, time: snap.simTime || snap.wallTime }))
+        : trades.map((trade, i) => ({ index: i, price: trade.price, mid: trade.price, bid: null, ask: null, time: trade.simTime || trade.wallTime }));
+
+      if (!points.length) {
+        drawEmptyCanvas(ctx, width, height, "No market path loaded");
+        return;
+      }
+
+      const prices = [
+        ...points.map((point) => point.mid || point.price),
+        ...points.map((point) => point.bid).filter(Number.isFinite),
+        ...points.map((point) => point.ask).filter(Number.isFinite),
+        ...trades.map((trade) => trade.price).filter(Number.isFinite)
+      ].filter(Number.isFinite);
+      const min = Math.min(...prices);
+      const max = Math.max(...prices);
+      const pad = Math.max((max - min) * 0.30, 0.08);
+      const lo = min - pad;
+      const hi = max + pad;
+      const x = (i) => plot.left + (i / Math.max(points.length - 1, 1)) * (plot.right - plot.left);
+      const y = (price) => plot.top + ((hi - price) / Math.max(hi - lo, 0.01)) * (plot.bottom - plot.top);
+
+      const tradeToX = (trade) => {
+        if (!snapshots.length) return x(Math.max(0, trades.indexOf(trade)));
+        const target = parseTime(trade.simTime || trade.wallTime);
+        if (!target) return x(Math.max(0, points.length - 1));
+        let best = 0;
+        let bestDistance = Infinity;
+        points.forEach((point, i) => {
+          const time = parseTime(point.time);
+          const distance = time ? Math.abs(time - target) : Math.abs(i - points.length + 1);
+          if (distance < bestDistance) {
+            best = i;
+            bestDistance = distance;
+          }
+        });
+        return x(best);
+      };
+
+      drawAxisLabels(ctx, plot, hi, lo);
+
+      if (snapshots.length) {
+        ctx.save();
+        ctx.strokeStyle = "rgba(255, 77, 93, 0.46)";
+        ctx.lineWidth = 1.2;
+        drawLine(ctx, points.filter((p) => Number.isFinite(p.ask)), (point) => x(point.index), (point) => y(point.ask));
+        ctx.strokeStyle = "rgba(25, 195, 125, 0.46)";
+        drawLine(ctx, points.filter((p) => Number.isFinite(p.bid)), (point) => x(point.index), (point) => y(point.bid));
+        ctx.restore();
+      }
+
+      const gradient = ctx.createLinearGradient(0, plot.top, 0, plot.bottom);
+      gradient.addColorStop(0, "rgba(56, 189, 248, 0.20)");
+      gradient.addColorStop(0.72, "rgba(56, 189, 248, 0.035)");
+      gradient.addColorStop(1, "rgba(56, 189, 248, 0)");
+      ctx.beginPath();
+      points.forEach((point, i) => {
+        const px = x(i);
+        const py = y(point.mid || point.price);
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      });
+      ctx.lineTo(x(points.length - 1), plot.bottom);
+      ctx.lineTo(x(0), plot.bottom);
+      ctx.closePath();
+      ctx.fillStyle = gradient;
+      ctx.fill();
+
+      ctx.strokeStyle = "#38bdf8";
+      ctx.lineWidth = 2.1;
+      drawLine(ctx, points, (point) => x(point.index), (point) => y(point.mid || point.price));
+
+      const lastPoint = points.at(-1);
+      if (lastPoint) {
+        const ly = y(lastPoint.mid || lastPoint.price);
+        ctx.setLineDash([5, 5]);
+        ctx.strokeStyle = "rgba(243, 246, 251, 0.28)";
+        ctx.beginPath();
+        ctx.moveTo(plot.left, ly);
+        ctx.lineTo(plot.right, ly);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        drawPriceBadge(ctx, plot.right + 8, ly, lastPoint.mid || lastPoint.price);
+      }
+
+      drawVolumeBars(ctx, trades, plot, tradeToX);
+      drawTrades(ctx, trades, tradeToX, y);
+      drawShockBands(ctx, shocks, points, plot, x);
+      drawTimeLabels(ctx, points, plot, x);
+    }
+
+    function drawLine(ctx, points, xOf, yOf) {
+      ctx.beginPath();
+      points.forEach((point, i) => {
+        const px = xOf(point);
+        const py = yOf(point);
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      });
+      ctx.stroke();
+    }
+
+    function drawVolumeBars(ctx, trades, plot, tradeToX) {
+      if (!trades.length) return;
+      const maxQty = Math.max(...trades.map((trade) => trade.qty), 1);
+      const base = plot.bottom + 50;
+      const top = plot.bottom + 14;
+      ctx.save();
+      trades.forEach((trade) => {
+        const h = (trade.qty / maxQty) * (base - top);
+        const px = tradeToX(trade);
+        ctx.fillStyle = trade.side === "SELL" ? "rgba(255, 77, 93, 0.52)" : "rgba(25, 195, 125, 0.52)";
+        ctx.fillRect(px - 4, base - h, 8, h);
+      });
+      ctx.restore();
+    }
+
+    function drawTrades(ctx, trades, tradeToX, y) {
+      ctx.save();
+      trades.forEach((trade) => {
+        const px = tradeToX(trade);
+        const py = y(trade.price);
+        ctx.fillStyle = trade.side === "SELL" ? "#ff4d5d" : "#19c37d";
+        ctx.strokeStyle = "#070a0e";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(px, py, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      });
+      ctx.restore();
+    }
+
+    function drawShockBands(ctx, shocks, points, plot, x) {
+      if (!shocks.length || !points.length) return;
+      ctx.save();
+      const pointTimes = points.map((point) => parseTime(point.time));
+      const firstTime = pointTimes.find(Boolean);
+      const lastTime = pointTimes.slice().reverse().find(Boolean);
+
+      shocks.forEach((shock, index) => {
+        const shockTime = parseTime(shock.timestamp);
+        let pos = 0.58;
+        if (shockTime && firstTime && lastTime && lastTime !== firstTime) {
+          pos = (shockTime - firstTime) / (lastTime - firstTime);
+        } else if (shocks.length > 1) {
+          pos = (index + 1) / (shocks.length + 1);
+        }
+        const sx = plot.left + Math.max(0, Math.min(1, pos)) * (plot.right - plot.left);
+        ctx.fillStyle = "rgba(242, 184, 75, 0.075)";
+        ctx.fillRect(sx - 12, plot.top, 24, plot.bottom - plot.top);
+        ctx.strokeStyle = "rgba(242, 184, 75, 0.78)";
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.moveTo(sx, plot.top);
+        ctx.lineTo(sx, plot.bottom);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = "#f2b84b";
+        ctx.font = `10px ${font("--mono")}`;
+        ctx.fillText("SHOCK", sx + 7, plot.top + 14);
+      });
+      ctx.restore();
+    }
+
+    function drawTimeLabels(ctx, points, plot, x) {
+      ctx.save();
+      ctx.fillStyle = "#596373";
+      ctx.font = `10px ${font("--mono")}`;
+      const labels = [0, Math.floor((points.length - 1) / 2), points.length - 1].filter((value, index, arr) => arr.indexOf(value) === index);
+      labels.forEach((index) => {
+        const label = shortTime(points[index]?.time);
+        ctx.fillText(label, x(index) - 18, plot.bottom + 66);
+      });
+      ctx.restore();
+    }
+
+    function drawAxisLabels(ctx, plot, hi, lo) {
+      ctx.save();
+      ctx.fillStyle = "#596373";
+      ctx.font = `10px ${font("--mono")}`;
+      const levels = [hi, (hi + lo) / 2, lo];
+      levels.forEach((value, i) => {
+        const y = plot.top + (i / 2) * (plot.bottom - plot.top);
+        ctx.fillText(money.format(value), plot.right + 8, y + 4);
+      });
+      ctx.restore();
+    }
+
+    function drawPriceBadge(ctx, x, y, price) {
+      const text = money.format(price);
+      const width = 58;
+      ctx.save();
+      ctx.fillStyle = "#16202a";
+      ctx.strokeStyle = "rgba(56, 189, 248, 0.48)";
+      roundRect(ctx, x, y - 11, width, 22, 5);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = "#eaf4ff";
+      ctx.font = `11px ${font("--mono")}`;
+      ctx.fillText(text, x + 7, y + 4);
+      ctx.restore();
+    }
+
+    function drawDepthChart(canvas, book) {
+      const ctx = prepCanvas(canvas);
+      const rect = canvas.getBoundingClientRect();
+      const width = rect.width;
+      const height = rect.height;
+      ctx.clearRect(0, 0, width, height);
+      const plot = { left: 34, right: width - 34, top: 20, bottom: height - 32 };
+      drawChartGrid(ctx, width, height, plot);
+
+      const bids = book.bids.slice().reverse();
+      const asks = book.asks.slice();
+      if (!bids.length && !asks.length) {
+        drawEmptyCanvas(ctx, width, height, "No active depth");
+        return;
+      }
+
+      const all = [...bids, ...asks];
+      const maxTotal = Math.max(...all.map((row) => row.total), 1);
+      const midX = width / 2;
+      const halfW = (plot.right - plot.left) / 2;
+      const y = (total) => plot.bottom - (total / maxTotal) * (plot.bottom - plot.top);
+
+      ctx.save();
+      ctx.fillStyle = "rgba(25, 195, 125, 0.20)";
+      ctx.strokeStyle = "#19c37d";
+      drawDepthSide(ctx, bids, midX - halfW, halfW, y, plot.bottom, false);
+
+      ctx.fillStyle = "rgba(255, 77, 93, 0.20)";
+      ctx.strokeStyle = "#ff4d5d";
+      drawDepthSide(ctx, asks, midX, halfW, y, plot.bottom, true);
+
+      ctx.strokeStyle = "rgba(243, 246, 251, 0.20)";
+      ctx.beginPath();
+      ctx.moveTo(midX, plot.top);
+      ctx.lineTo(midX, plot.bottom);
+      ctx.stroke();
+
+      ctx.fillStyle = "#8591a3";
+      ctx.font = `10px ${font("--mono")}`;
+      ctx.fillText("BIDS", plot.left, plot.top + 10);
+      ctx.fillText("ASKS", midX + 8, plot.top + 10);
+      ctx.restore();
+    }
+
+    function drawDepthSide(ctx, rows, startX, width, y, bottom, forward) {
+      if (!rows.length) return;
+      ctx.beginPath();
+      ctx.moveTo(forward ? startX : startX + width, bottom);
+      rows.forEach((row, i) => {
+        const px = forward
+          ? startX + (i / Math.max(rows.length - 1, 1)) * width
+          : startX + width - (i / Math.max(rows.length - 1, 1)) * width;
+        ctx.lineTo(px, y(row.total));
+      });
+      ctx.lineTo(forward ? startX + width : startX, bottom);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    function prepCanvas(canvas) {
+      const rect = canvas.getBoundingClientRect();
+      const ratio = window.devicePixelRatio || 1;
+      canvas.width = Math.max(1, Math.floor(rect.width * ratio));
+      canvas.height = Math.max(1, Math.floor(rect.height * ratio));
+      const ctx = canvas.getContext("2d");
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      return ctx;
+    }
+
+    function drawChartGrid(ctx, width, height, plot) {
+      ctx.save();
+      ctx.strokeStyle = "rgba(255,255,255,0.052)";
+      ctx.lineWidth = 1;
+      for (let x = plot.left; x <= plot.right; x += 72) {
+        ctx.beginPath();
+        ctx.moveTo(x, plot.top);
+        ctx.lineTo(x, plot.bottom);
+        ctx.stroke();
+      }
+      for (let y = plot.top; y <= plot.bottom; y += 52) {
+        ctx.beginPath();
+        ctx.moveTo(plot.left, y);
+        ctx.lineTo(plot.right, y);
+        ctx.stroke();
+      }
+      ctx.strokeStyle = "rgba(255,255,255,0.12)";
+      ctx.strokeRect(plot.left, plot.top, plot.right - plot.left, plot.bottom - plot.top);
+      ctx.restore();
+    }
+
+    function drawEmptyCanvas(ctx, width, height, text) {
+      ctx.save();
+      ctx.fillStyle = "#8591a3";
+      ctx.font = `13px ${font("--sans")}`;
+      ctx.textAlign = "center";
+      ctx.fillText(text, width / 2, height / 2);
+      ctx.restore();
+    }
+
+    function roundRect(ctx, x, y, width, height, radius) {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + width - radius, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+      ctx.lineTo(x + width, y + height - radius);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      ctx.lineTo(x + radius, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+    }
+
+    function bestMid(book) {
+      const bid = book.bids[0]?.price;
+      const ask = book.asks[0]?.price;
+      if (bid && ask) return (bid + ask) / 2;
+      return bid || ask || 0;
+    }
+
+    function firstPosition(portfolio) {
+      const positions = portfolio?.positions || {};
+      return Object.values(positions)[0] || null;
+    }
+
+    function shortTime(value) {
+      if (!value) return "--";
+      const str = String(value);
+      const isoTime = str.match(/T(\d{2}:\d{2}:\d{2})/);
+      if (isoTime) return isoTime[1];
+      const plain = str.match(/\d{4}-\d{2}-\d{2} (\d{2}:\d{2}:\d{2})/);
+      if (plain) return plain[1];
+      return str.slice(0, 12);
+    }
+
+    function parseTime(value) {
+      if (!value) return null;
+      const parsed = Date.parse(String(value).replace(" ", "T"));
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    function compactAgent(value) {
+      return String(value || "")
+        .replace("retail_population_", "retail_")
+        .replace("institutional_execution", "inst_exec")
+        .replace("mean_reversion_fund", "mean_rev")
+        .replace("momentum_fund", "momentum")
+        .replace("market_maker", "maker");
+    }
+
+    function compactRole(value) {
+      const role = String(value || "");
+      if (role === "Market Maker") return "Maker";
+      if (role === "Institutional") return "Inst";
+      if (role === "Shock Agent") return "Shock";
+      return role;
+    }
+
+    function formatSignedMoney(value) {
+      const clean = Number(value || 0);
+      if (!Number.isFinite(clean) || clean === 0) return "$0.00";
+      return `${clean > 0 ? "+" : "-"}$${money.format(Math.abs(clean))}`;
+    }
+
+    function font(token) {
+      return getComputedStyle(document.documentElement).getPropertyValue(token).trim();
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function wireInputs() {
+      el("runSimBtn").addEventListener("click", () => {
+        startSimulation().catch((error) => {
+          setStatus("Run error", "red");
+          showToast(error.message);
+        });
+      });
+
+      el("loadRunBtn").addEventListener("click", () => loadRun(el("runIdInput").value).catch((error) => {
+        setStatus("Load error", "red");
+        showToast(error.message);
+      }));
+      el("runIdInput").addEventListener("keydown", (event) => {
+        if (event.key === "Enter") el("loadRunBtn").click();
+      });
+
+      el("actionsFile").addEventListener("change", async (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        state.actionsReport = JSON.parse(await readFileAsText(file));
+        setStatus("Loaded", "green");
+        render();
+      });
+
+      el("logFile").addEventListener("change", async (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        state.orderLog = await readFileAsText(file);
+        setStatus("Loaded", "green");
+        render();
+      });
+
+      el("summaryFile").addEventListener("change", async (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        state.summary = JSON.parse(await readFileAsText(file));
+        setStatus("Loaded", "green");
+        render();
+      });
+    }
+
+    wireInputs();
+    const query = new URLSearchParams(window.location.search);
+    loadRun(query.get("run") || state.runId).catch((error) => {
+      setStatus("Manual files", "red");
+      showToast(error.message);
+      render();
+    }).finally(() => pollRunStatus());
+  </script>
+</body>
+</html>

@@ -157,6 +157,18 @@ def import_agent_class(agent_type: str) -> type:
         from aml_sim.agents.institutional_trader import AMLInstitutionalTrader
 
         return AMLInstitutionalTrader
+    if agent_type == "AML_Informed_Trader":
+        from aml_sim.agents.informed_trader import AMLInformedTrader
+
+        return AMLInformedTrader
+    if agent_type == "AML_Liquidity_Taker":
+        from aml_sim.agents.liquidity_taker import AMLLiquidityTaker
+
+        return AMLLiquidityTaker
+    if agent_type == "AML_Shock_Agent":
+        from aml_sim.agents.shock_agent import AMLShockAgent
+
+        return AMLShockAgent
 
     raise ValueError(f"Unsupported agent type '{agent_type}'")
 
@@ -267,6 +279,9 @@ def build_agent_param_customizers(
         "AML_Institutional_Trader": lambda params: _normalize_aml_agent_params(
             params, 300
         ),
+        "AML_Informed_Trader": lambda params: _normalize_aml_agent_params(params, 60),
+        "AML_Liquidity_Taker": lambda params: _normalize_aml_agent_params(params, 60),
+        "AML_Shock_Agent": lambda params: params,
     }
 
 
@@ -385,6 +400,13 @@ def run_stocksim_components(
     )
 
     _wait_for_healthy(trader_processes, label="trading agents", max_wait=30.0)
+
+    startup_grace_seconds = simulation_config.get("startup_grace_seconds", 5)
+    logger.info(
+        "Waiting %.1fs for RabbitMQ queue bindings before starting clock.",
+        startup_grace_seconds,
+    )
+    time.sleep(startup_grace_seconds)
 
     # --- Clock process ---
     llm_expected_responses = sum(
@@ -622,6 +644,13 @@ def start_trader_processes(
 ) -> list[Process]:
     """Start one process for each configured trader instance."""
     agent_processes: list[Process] = []
+    agent_ids_by_name = build_agent_instance_id_map(agents_config)
+    shock_target_agent_ids = [
+        agent_id
+        for agent_name, agent_ids in agent_ids_by_name.items()
+        if agents_config.get(agent_name, {}).get("type") != "AML_Shock_Agent"
+        for agent_id in agent_ids
+    ]
 
     for agent_name, agent_details in agents_config.items():
         agent_type = agent_details.get("type")
@@ -650,6 +679,8 @@ def start_trader_processes(
                 "instrument_exchange_map", instrument_exchange_map
             )
             instance_params["rabbitmq_host"] = rabbitmq_host
+            if agent_type == "AML_Shock_Agent":
+                instance_params.setdefault("target_agent_ids", shock_target_agent_ids)
 
             # Deterministic seed: derived from run_id and agent identity so
             # every re-run of the same scenario produces the same behaviour.
@@ -667,6 +698,18 @@ def start_trader_processes(
             logger.info("Started trader '%s'.", unique_agent_id)
 
     return agent_processes
+
+
+def build_agent_instance_id_map(agents_config: dict[str, Any]) -> dict[str, list[str]]:
+    """Return launcher-generated instance ids for each configured agent group."""
+    agent_ids: dict[str, list[str]] = {}
+    for agent_name, agent_details in agents_config.items():
+        count = agent_details.get("count", 1)
+        agent_ids[agent_name] = [
+            f"{agent_name}_{index + 1}" if count > 1 else agent_name
+            for index in range(count)
+        ]
+    return agent_ids
 
 
 def _make_seed(run_id: str, agent_id: str) -> int:

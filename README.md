@@ -277,6 +277,52 @@ python aml_runner.py scenarios/aml_orderbook_replay.yaml --run-id smoke_orderboo
 Use a new `--run-id` each time, because the runner intentionally refuses to
 overwrite an existing `.aml_runs/<run-id>` directory.
 
+## Run From The Dashboard
+
+For local iteration, the dashboard can serve the UI and launch a simulation from
+one small Python server. If Docker Desktop is installed and the `docker`
+command works in your terminal, use:
+
+```bash
+python dashboard_server.py --start-rabbitmq --run --run-id one_hour_live
+```
+
+If Docker is not installed or is not on your `PATH`, start RabbitMQ manually on
+`localhost:5672` first, then run the dashboard without `--start-rabbitmq`:
+
+```bash
+python dashboard_server.py --run --run-id one_hour_live
+```
+
+Open the printed URL, or go directly to:
+
+```text
+http://127.0.0.1:8765/dashboard.html?run=one_hour_live
+```
+
+The `Run Simulation` button in `dashboard.html` works only when the page is
+served by `dashboard_server.py`, because plain `python3 -m http.server 8765`
+cannot start local Python processes. If RabbitMQ is already running and you only
+want the UI/API server, use:
+
+```bash
+python dashboard_server.py
+```
+
+While a simulation is running, the dashboard streams run artifacts from
+`/api/live` and updates the price chart, order book, trade tape, shock monitor,
+participant activity, and top-line stats as the StockSim logs are written. Final
+report files are still loaded after shutdown for completed-run metrics.
+
+Runs are finite by default. The scenario YAML controls the simulated clock with
+`simulation.start_time`, `simulation.end_time`, and `simulation.tick_interval`.
+For example, `scenarios/aml_one_hour_live.yaml` runs from 09:30 to 10:30 with
+30-second ticks. The dashboard streams updates while this run is active; after
+the scenario clock reaches `end_time`, the run stops and the final reports are
+loaded. StockSim currently sleeps for roughly 5 wall-clock seconds per tick, so
+this one simulated hour usually takes about 10 wall-clock minutes plus
+startup/reporting overhead.
+
 ## Working With The StockSim Submodule
 
 When editing files under `simulators/StockSim`, commit and push those changes

@@ -37,6 +37,7 @@ def build_observation_context(
             "last_market_snapshot": serialize_mapping(
                 getattr(agent, "last_market_snapshot", {})
             ),
+            "price_history": serialize_mapping(getattr(agent, "price_history", {})),
         },
         "portfolio": _build_portfolio_context(agent, instruments),
         "orders": {
@@ -47,6 +48,7 @@ def build_observation_context(
         "strategy_state": _strategy_state(agent),
         "memory": serialize_mapping(memory or {}),
         "events": [serialize_mapping(event) for event in (events or [])],
+        "event_count": len(events or []),
     }
 
 
